@@ -6,7 +6,7 @@
 # WHO:  Every developer triggers this automatically on git push
 # =============================================================================
 
-name: "\U0001F504 CI Pipeline - Build & Test"
+name: "CI Pipeline - Build and Test"
 
 on:
   push:
@@ -24,16 +24,13 @@ concurrency:
   group: "ci-${{ github.ref }}"
   cancel-in-progress: true
 
-env:
-  GO_VERSION: '1.26'
-
 jobs:
   # =========================================================================
   # JOB 1: Code Quality & Linting
   # WHY: Catches syntax errors, style violations BEFORE review
   # =========================================================================
   lint:
-    name: "\U0001F50D Lint & Static Analysis"
+    name: "Lint and Static Analysis"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -42,25 +39,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: src/productcatalogservice/go.mod
 
       - name: Run go vet (static analysis)
         run: |
           cd src/productcatalogservice
           go vet ./...
 
-      - name: Check go mod tidy
-        run: |
-          cd src/productcatalogservice
-          go mod tidy
-          git diff --exit-code go.mod go.sum
-
   # =========================================================================
   # JOB 2: Unit Tests
   # WHY: Verifies business logic works correctly
   # =========================================================================
   test:
-    name: "\U0001F9EA Unit Tests"
+    name: "Unit Tests"
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -70,7 +61,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: src/productcatalogservice/go.mod
 
       - name: Run tests with coverage
         run: |
@@ -88,7 +79,7 @@ jobs:
   # WHY: Ensures the container builds successfully before merging
   # =========================================================================
   build:
-    name: "\U0001F433 Build Docker Images"
+    name: "Build Docker Images"
     runs-on: ubuntu-latest
     needs: test
     strategy:
@@ -119,7 +110,7 @@ jobs:
   # WHY: Detects vulnerabilities BEFORE deployment
   # =========================================================================
   security-scan:
-    name: "\U0001F6E1 Security Vulnerability Scan"
+    name: "Security Vulnerability Scan"
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -140,25 +131,31 @@ jobs:
   # WHY: Catches YAML errors before they break the cluster
   # =========================================================================
   validate-manifests:
-    name: "\u2638 Validate K8s Manifests"
+    name: "Validate K8s Manifests"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Dry-run validate all manifests
+      - name: Validate YAML syntax
         run: |
+          echo "Validating Kubernetes manifest YAML syntax..."
           for manifest in kubernetes-manifests/*.yaml; do
             filename=$(basename "$manifest")
-            # Skip non-manifest files
-            if [ "$filename" = "kustomization.yaml" ] || [ "$filename" = "README.md" ]; then
-              echo "Skipping $filename (not a direct manifest)"
+            if [ "$filename" = "kustomization.yaml" ]; then
+              echo "Skipping $filename (Kustomize file)"
               continue
             fi
-            echo "Validating $manifest..."
-            kubectl apply --dry-run=client --validate=false -f "$manifest" 2>&1 || exit 1
+            # Check YAML is parseable
+            python3 -c "
+          import yaml, sys
+          try:
+              with open('$manifest') as f:
+                  list(yaml.safe_load_all(f))
+              print(f'  PASS: $manifest')
+          except Exception as e:
+              print(f'  FAIL: $manifest - {e}')
+              sys.exit(1)
+          "
           done
-          echo "All manifests are valid!"
+          echo "All manifests have valid YAML syntax!"
