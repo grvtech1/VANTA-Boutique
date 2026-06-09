@@ -27,3 +27,16 @@ replicas:
     count: 1
   - name: shippingservice
     count: 1
+
+patches:
+  - target:
+      kind: Service
+      name: frontend-external
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: replace
+        path: /spec/ports/0/nodePort
+        value: 30080
+
