@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - hpa.yaml
+
+# Replicas configuration for Prod environment (3 replicas)
+replicas:
+  - name: adservice
+    count: 3
+  - name: cartservice
+    count: 3
+  - name: checkoutservice
+    count: 3
+  - name: currencyservice
+    count: 3
+  - name: emailservice
+    count: 3
+  - name: frontend
+    count: 3
+  - name: loadgenerator
+    count: 1
+  - name: paymentservice
+    count: 3
+  - name: productcatalogservice
+    count: 3
+  - name: recommendationservice
+    count: 3
+  - name: shippingservice
+    count: 3
