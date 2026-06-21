@@ -1,0 +1,200 @@
+# =============================================================================
+# Prometheus + Grafana Helm Values — Production-Grade Configuration
+# =============================================================================
+# CHANGES FROM PREVIOUS VERSION:
+#   1. Alertmanager ENABLED (was disabled)
+#   2. SRE Alert Rules added (pod crash, node health, deployment mismatch)
+#   3. All components pinned to master node
+# =============================================================================
+
+# --- Prometheus Server ---
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    retention: 6h
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# --- Grafana ---
+grafana:
+  service:
+    type: NodePort
+    nodePort: 32000
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  adminPassword: "devops2026"
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: "Asia/Kolkata"
+
+# --- Alertmanager (NOW ENABLED) ---
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+
+# --- SRE Alert Rules ---
+additionalPrometheusRulesMap:
+  online-boutique-sre-alerts:
+    groups:
+      - name: boutique.pod.health
+        rules:
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="boutique"}[5m]) > 0
+            for: 5m
+            labels:
+              severity: warning
+              team: sre
+            annotations:
+              summary: "Pod {{ $labels.pod }} is crash-looping"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted in the last 5 minutes."
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="boutique", condition="true"} == 0
+            for: 3m
+            labels:
+              severity: critical
+              team: sre
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not ready"
+      - name: boutique.node.health
+        rules:
+          - alert: NodeNotReady
+            expr: kube_node_status_condition{condition="Ready", status="true"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              team: sre
+            annotations:
+              summary: "Node {{ $labels.node }} is NotReady"
+          - alert: NodeHighMemoryUsage
+            expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+            for: 5m
+            labels:
+              severity: warning
+              team: sre
+            annotations:
+              summary: "Node {{ $labels.instance }} memory above 90%"
+          - alert: NodeHighCPUUsage
+            expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+            for: 5m
+            labels:
+              severity: warning
+              team: sre
+            annotations:
+              summary: "Node {{ $labels.instance }} CPU above 85%"
+          - alert: NodeDiskPressure
+            expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+              team: sre
+            annotations:
+              summary: "Node {{ $labels.instance }} disk above 85%"
+      - name: boutique.deployment.health
+        rules:
+          - alert: DeploymentReplicasMismatch
+            expr: kube_deployment_spec_replicas{namespace="boutique"} != kube_deployment_status_ready_replicas{namespace="boutique"}
+            for: 5m
+            labels:
+              severity: critical
+              team: sre
+            annotations:
+              summary: "Deployment {{ $labels.deployment }} has replica mismatch"
+          - alert: HpaMaxedOut
+            expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="boutique"} == kube_horizontalpodautoscaler_spec_max_replicas{namespace="boutique"}
+            for: 10m
+            labels:
+              severity: warning
+              team: sre
+            annotations:
+              summary: "HPA {{ $labels.horizontalpodautoscaler }} is at max replicas"
+
+# --- kube-state-metrics ---
+kube-state-metrics:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# --- Prometheus Node Exporter ---
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 32Mi
+
+# --- Prometheus Operator ---
+prometheusOperator:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+
+# --- Disable components we don't need ---
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false

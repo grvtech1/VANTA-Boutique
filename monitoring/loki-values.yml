@@ -1,0 +1,49 @@
+# =============================================================================
+# Loki + Promtail — Centralized Log Aggregation
+# =============================================================================
+# WHY: Instead of kubectl logs on each pod individually, Loki collects
+#      all logs and makes them searchable in Grafana.
+# INSTALL:
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm install loki grafana/loki-stack \
+#     --namespace monitoring \
+#     -f monitoring/loki-values.yml \
+#     --kubeconfig /home/gaurav/online-boutique/kubeconfig-aws
+# =============================================================================
+
+loki:
+  enabled: true
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  config:
+    limits_config:
+      retention_period: 6h
+
+promtail:
+  enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+grafana:
+  enabled: false   # Already installed via kube-prometheus-stack
+
+prometheus:
+  enabled: false   # Already installed via kube-prometheus-stack

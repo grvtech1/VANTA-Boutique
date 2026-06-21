@@ -5,8 +5,14 @@
 .kubernetes-manifests-*/
 .project
 .skaffold-*.yaml
+# Terraform & Kubernetes local configs
+.terraform/
+**/.terraform/
 .terraform.lock.hcl
-.terraform/*
+**/.terraform.lock.hcl
+*tfplan*
+tf_outputs.json
+*kubeconfig*
 .venv/
 .vs/
 .vscode/

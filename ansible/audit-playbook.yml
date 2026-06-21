@@ -1,0 +1,293 @@
+---
+# =============================================================================
+# ANSIBLE AUDIT PLAYBOOK - Production Infrastructure Health Check
+# =============================================================================
+# PURPOSE:  Audit all 3 K8s nodes for health, capacity, and security
+# RUN:      ansible-playbook -i inventory.yml audit-playbook.yml
+#
+# WHY THIS EXISTS:
+#   In production, you NEVER SSH into servers one by one.
+#   You write ONE playbook that runs on ALL servers simultaneously.
+#   This playbook collects system health, service status, and security info.
+#
+# CONCEPTS YOU WILL LEARN:
+#   - hosts           Which servers to target
+#   - gather_facts    Auto-collect OS, CPU, RAM, IP information
+#   - become          Run commands as root (sudo)
+#   - register        Save command output into a variable
+#   - debug           Print information to the terminal
+#   - shell           Run a bash command on the remote server
+#   - when            Conditional - only run this task IF condition is true
+#   - changed_when    Mark task as changed or not (idempotent reporting)
+#   - failed_when     Control when a task is marked as failed
+#   - environment     Set environment variables for commands
+# =============================================================================
+
+# =============================================================================
+# PLAY 1: SYSTEM FACTS - What hardware/OS do we have?
+# =============================================================================
+# WHY: Before fixing anything, you need to KNOW what you are working with.
+#      "Doctor, check the patient before prescribing medicine."
+# =============================================================================
+- name: "PLAY 1 - System Facts and Hardware Audit"
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: System Overview
+      debug:
+        msg: |
+          ============================================
+           NODE: {{ inventory_hostname }}
+          ============================================
+           IP (Public):   {{ ansible_host }}
+           IP (Private):  {{ ansible_default_ipv4.address }}
+           Hostname:      {{ ansible_hostname }}
+           OS:            {{ ansible_distribution }} {{ ansible_distribution_version }}
+           Kernel:        {{ ansible_kernel }}
+           Architecture:  {{ ansible_architecture }}
+           CPU Cores:     {{ ansible_processor_vcpus }} vCPU
+           RAM Total:     {{ (ansible_memtotal_mb / 1024) | round(2) }} GB
+           RAM Free:      {{ (ansible_memfree_mb / 1024) | round(2) }} GB
+           RAM Used pct:  {{ ((1 - ansible_memfree_mb / ansible_memtotal_mb) * 100) | round(1) }}%
+           Swap Total:    {{ (ansible_swaptotal_mb / 1024) | round(2) }} GB
+           Role:          {{ node_role | default("unknown") }}
+          ============================================
+
+    # WHY: If disk fills up above 85%, Kubernetes evicts pods!
+    #      K8s has a built-in DiskPressure condition that taints nodes.
+    - name: Disk Usage
+      shell: df -h --output=source,size,used,avail,pcent,target -x tmpfs -x devtmpfs
+      register: disk_output
+      changed_when: false
+
+    - name: Show Disk Usage
+      debug:
+        msg: "{{ disk_output.stdout_lines }}"
+
+    # WHY: OOMKilled pods are the number 1 issue on small instances.
+    #      Workers (t3.micro = 1GB) are at 94-99% memory limits!
+    - name: Memory Details
+      shell: free -h
+      register: memory_output
+      changed_when: false
+
+    - name: Show Memory
+      debug:
+        msg: "{{ memory_output.stdout_lines }}"
+
+    # WHY: Load average > number of CPUs means server is overloaded.
+    #      Our servers have 2 vCPU, so load > 2.0 = problem.
+    - name: Uptime and Load Average
+      shell: uptime
+      register: uptime_output
+      changed_when: false
+
+    - name: Show Uptime
+      debug:
+        msg: "{{ uptime_output.stdout }}"
+
+# =============================================================================
+# PLAY 2: SERVICE HEALTH - Are K8s components running?
+# =============================================================================
+# WHY: A node might show "Ready" in kubectl but have a failing service.
+#      We check the ACTUAL systemd services directly on each server.
+#
+# CRITICAL SERVICES:
+#   containerd  -> Container runtime (runs your Docker images)
+#   kubelet     -> The K8s agent (receives orders from API server)
+# =============================================================================
+- name: "PLAY 2 - Kubernetes Service Health Check"
+  hosts: all
+  become: true
+  tasks:
+    # containerd is the container runtime. If it dies, NO pods can run.
+    - name: Check containerd service
+      shell: systemctl is-active containerd
+      register: containerd_status
+      changed_when: false
+      failed_when: false
+
+    # kubelet is the K8s agent. If it dies, the node goes NotReady.
+    - name: Check kubelet service
+      shell: systemctl is-active kubelet
+      register: kubelet_status
+      changed_when: false
+      failed_when: false
+
+    - name: Service Health Report
+      debug:
+        msg: |
+          SERVICE HEALTH - {{ inventory_hostname }}
+          -------------------------------------------
+           containerd: {{ containerd_status.stdout | default("UNKNOWN") }}
+           kubelet:    {{ kubelet_status.stdout | default("UNKNOWN") }}
+          -------------------------------------------
+
+    # WHY: On 1GB workers, pods can get OOMKilled silently.
+    #      dmesg shows kernel-level memory kills.
+    - name: Check for OOM kills in kernel log
+      shell: dmesg | grep -i "oom\|killed process" | tail -5
+      register: oom_check
+      changed_when: false
+      failed_when: false
+
+    - name: OOM Kill Report
+      debug:
+        msg: "{{ oom_check.stdout_lines }}"
+      when: oom_check.stdout_lines | length > 0
+
+    - name: No OOM Kills
+      debug:
+        msg: "No OOM kills detected - healthy!"
+      when: oom_check.stdout_lines | length == 0
+
+    # WHY: Shows exactly which containers are running on each node
+    - name: List running containers via crictl
+      shell: crictl ps --output table 2>/dev/null
+      register: containers_output
+      changed_when: false
+      failed_when: false
+
+    - name: Running Containers
+      debug:
+        msg: "{{ containers_output.stdout_lines }}"
+
+# =============================================================================
+# PLAY 3: MASTER-ONLY CHECKS - Kubernetes Cluster Health
+# =============================================================================
+# WHY: Only the master has kubectl + cluster admin access.
+#      We check the overall cluster state from here.
+# =============================================================================
+- name: "PLAY 3 - K8s Cluster Health (Master Only)"
+  hosts: masters
+  become: false
+  tasks:
+    - name: Get K8s node status
+      shell: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: nodes_status
+      changed_when: false
+
+    - name: Cluster Nodes
+      debug:
+        msg: "{{ nodes_status.stdout_lines }}"
+
+    - name: Get Online Boutique pods
+      shell: kubectl get pods -n boutique -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: pods_status
+      changed_when: false
+
+    - name: Online Boutique Pods
+      debug:
+        msg: "{{ pods_status.stdout_lines }}"
+
+    - name: Check for non-Running pods across all namespaces
+      shell: kubectl get pods -A --field-selector=status.phase!=Running --no-headers 2>/dev/null | wc -l
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: unhealthy_count
+      changed_when: false
+
+    - name: Pod Health Summary
+      debug:
+        msg: "Non-running pods count: {{ unhealthy_count.stdout | trim }}"
+
+    - name: Node resource allocation
+      shell: kubectl describe nodes | grep -A 5 "Allocated resources"
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: resource_alloc
+      changed_when: false
+
+    - name: Resource Allocation
+      debug:
+        msg: "{{ resource_alloc.stdout_lines }}"
+
+    # WHY: Events show recent problems - pod evictions, scheduling failures, etc.
+    - name: Recent cluster warning events
+      shell: kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp 2>/dev/null | tail -10
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: warnings
+      changed_when: false
+      failed_when: false
+
+    - name: Recent Warnings
+      debug:
+        msg: "{{ warnings.stdout_lines }}"
+
+# =============================================================================
+# PLAY 4: SECURITY AUDIT
+# =============================================================================
+# WHY: Even on learning clusters, practicing security auditing builds habits.
+#      In production, auditors check these exact things.
+# =============================================================================
+- name: "PLAY 4 - Security Audit"
+  hosts: all
+  become: true
+  tasks:
+    - name: List users with login shells
+      shell: "grep -v '/nologin\\|/false' /etc/passwd | grep -v '^#'"
+      register: login_users
+      changed_when: false
+
+    - name: Users with Login Access
+      debug:
+        msg: "{{ login_users.stdout_lines }}"
+
+    - name: SSH root login setting
+      shell: grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null
+      register: ssh_root
+      changed_when: false
+      failed_when: false
+
+    - name: SSH password auth setting
+      shell: grep -i "^PasswordAuthentication" /etc/ssh/sshd_config 2>/dev/null
+      register: ssh_pass
+      changed_when: false
+      failed_when: false
+
+    - name: SSH Config Report
+      debug:
+        msg: |
+          SSH Security - {{ inventory_hostname }}
+          Root Login:    {{ ssh_root.stdout | default("not explicitly set") }}
+          Password Auth: {{ ssh_pass.stdout | default("not explicitly set") }}
+
+    - name: Open listening ports
+      shell: ss -tlnp | grep LISTEN
+      register: open_ports
+      changed_when: false
+
+    - name: Listening Ports
+      debug:
+        msg: "{{ open_ports.stdout_lines }}"
+
+# =============================================================================
+# PLAY 5: FINAL SUMMARY
+# =============================================================================
+- name: "PLAY 5 - Audit Summary"
+  hosts: masters
+  become: false
+  tasks:
+    - name: AUDIT COMPLETE
+      debug:
+        msg: |
+          ====================================================
+            INFRASTRUCTURE AUDIT COMPLETE
+          ====================================================
+            System facts collected from all 3 nodes
+            Disk and memory usage checked
+            containerd and kubelet services verified
+            OOM kill history checked
+            K8s cluster health verified
+            Security posture audited
+          ====================================================
+            ANSIBLE CONCEPTS PRACTICED:
+              gather_facts, hosts groups, become,
+              register + debug, shell module,
+              changed_when, failed_when, environment
+          ====================================================

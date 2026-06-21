@@ -23,7 +23,7 @@ metadata:
     deployment.kubernetes.io/revision: "1"
     app.kubernetes.io/part-of: online-boutique
 spec:
-  replicas: 2  # Production: always run at least 2 for high availability
+  replicas: 1  # Minikube: 1 replica (Production: use 2+ for HA)
   selector:
     matchLabels:
       app: productcatalogservice
@@ -57,7 +57,7 @@ spec:
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
+          whenUnsatisfiable: ScheduleAnyway  # Minikube: single node (Production: DoNotSchedule)
           labelSelector:
             matchLabels:
               app: productcatalogservice
@@ -72,6 +72,7 @@ spec:
           privileged: false
           readOnlyRootFilesystem: true
         image: productcatalogservice
+        imagePullPolicy: Never  # Use locally-built image (Minikube)
         ports:
         - containerPort: 3550
           name: grpc

@@ -1,0 +1,12 @@
+# Patch: Replace emptyDir with PVC for Redis data persistence
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cart
+spec:
+  template:
+    spec:
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-cart-data

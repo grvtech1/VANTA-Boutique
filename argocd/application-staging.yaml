@@ -1,0 +1,35 @@
+# =============================================================================
+# ArgoCD Application — Staging Environment
+# =============================================================================
+# WHY: Separate ArgoCD Application per environment enables safe promotion
+#      flow: develop -> staging -> main (prod)
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-boutique-staging
+  namespace: argocd
+  labels:
+    environment: staging
+    team: sre
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/grvtech1/online-boutique-devops.git'
+    targetRevision: staging
+    path: kustomize/overlays/staging
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: boutique-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m

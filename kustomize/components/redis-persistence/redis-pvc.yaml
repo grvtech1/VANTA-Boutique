@@ -1,0 +1,16 @@
+# =============================================================================
+# PersistentVolumeClaim for Redis — Durable cart session data
+# =============================================================================
+# WHY: Redis with emptyDir loses ALL shopping cart data when the pod restarts.
+#      PVC ensures data survives pod rescheduling and node failures.
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-cart-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

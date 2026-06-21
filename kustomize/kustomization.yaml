@@ -17,10 +17,10 @@ kind: Kustomization
 resources:
 - base
 components:
+- components/network-policies
 # - components/cymbal-branding
 # - components/google-cloud-operations
 # - components/memorystore
-# - components/network-policies
 # - components/non-public-frontend
 # - components/service-accounts
 # - components/alloydb

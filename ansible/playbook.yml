@@ -1,0 +1,183 @@
+---
+# =============================================================================
+# Ansible Playbook — Bootstrap Kubernetes Cluster
+# =============================================================================
+# WHAT: Sets up a full K8s cluster from scratch on 3 EC2 servers
+# HOW:  kubeadm (the official K8s bootstrap tool)
+# WHY:  Real-world self-managed K8s — no EKS, YOU control everything
+#
+# RUN:  ansible-playbook -i inventory.yml playbook.yml
+# =============================================================================
+
+# =============================================================================
+# PLAY 1: Verify all nodes are reachable
+# =============================================================================
+- name: "PLAY 1 — Verify All Nodes"
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Show node info
+      debug:
+        msg: |
+          Host: {{ inventory_hostname }}
+          IP:   {{ ansible_host }}
+          OS:   {{ ansible_distribution }} {{ ansible_distribution_version }}
+          CPU:  {{ ansible_processor_vcpus }} vCPU
+          RAM:  {{ (ansible_memtotal_mb / 1024) | round(1) }} GB
+
+    - name: Check user_data script completed (containerd must be running)
+      shell: systemctl is-active containerd
+      register: containerd_status
+      retries: 10
+      delay: 30
+      until: containerd_status.stdout == "active"
+      changed_when: false
+
+    - name: Verify kubeadm is installed
+      shell: kubeadm version -o short
+      register: kubeadm_ver
+      changed_when: false
+
+    - name: Show kubeadm version
+      debug:
+        msg: "kubeadm: {{ kubeadm_ver.stdout }}"
+
+# =============================================================================
+# PLAY 2: Initialize K8s Master Node
+# =============================================================================
+- name: "PLAY 2 — Initialize K8s Master (kubeadm init)"
+  hosts: masters
+  become: true
+  tasks:
+    - name: Check if cluster already initialized
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: k8s_admin_conf
+
+    - name: Run kubeadm init
+      shell: |
+        kubeadm init \
+          --pod-network-cidr=10.244.0.0/16 \
+          --apiserver-advertise-address={{ ansible_host }} \
+          --node-name=k8s-master \
+          2>&1
+      register: kubeadm_init_output
+      when: not k8s_admin_conf.stat.exists
+      timeout: 300
+
+    - name: Show kubeadm init output
+      debug:
+        msg: "{{ kubeadm_init_output.stdout_lines[-20:] }}"
+      when: not k8s_admin_conf.stat.exists and kubeadm_init_output is defined
+
+    - name: Create .kube directory for ubuntu user
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy admin.conf to ubuntu user
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        remote_src: true
+
+    - name: Install Flannel CNI (pod networking)
+      become: false
+      shell: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+
+    - name: Get join command for workers
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Save join command
+      set_fact:
+        worker_join_command: "{{ join_command.stdout }}"
+
+# =============================================================================
+# PLAY 3: Join Worker Nodes to Cluster
+# =============================================================================
+- name: "PLAY 3 — Join Workers to K8s Cluster"
+  hosts: workers
+  become: true
+  tasks:
+    - name: Check if already joined
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Join cluster
+      shell: "{{ hostvars[groups['masters'][0]]['worker_join_command'] }}"
+      when: not kubelet_conf.stat.exists
+      timeout: 120
+
+    - name: Confirm worker joined
+      debug:
+        msg: "Worker {{ inventory_hostname }} joined the cluster!"
+      when: not kubelet_conf.stat.exists
+
+# =============================================================================
+# PLAY 4: Verify Cluster Health
+# =============================================================================
+- name: "PLAY 4 — Verify Cluster Health"
+  hosts: masters
+  become: false
+  tasks:
+    - name: Wait for all nodes to be Ready (up to 3 minutes)
+      shell: kubectl get nodes --no-headers | grep -v Ready | wc -l
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: not_ready_count
+      retries: 18
+      delay: 10
+      until: not_ready_count.stdout == "0"
+      changed_when: false
+
+    - name: Show all nodes
+      shell: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: nodes_output
+      changed_when: false
+
+    - name: "=== CLUSTER STATUS ==="
+      debug:
+        msg: "{{ nodes_output.stdout_lines }}"
+
+    - name: Show system pods
+      shell: kubectl get pods -n kube-system
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: pods_output
+      changed_when: false
+
+    - name: "=== SYSTEM PODS ==="
+      debug:
+        msg: "{{ pods_output.stdout_lines }}"
+
+    - name: Fetch kubeconfig to local machine
+      fetch:
+        src: /home/ubuntu/.kube/config
+        dest: ../kubeconfig-aws
+        flat: true
+
+    - name: "=== SUCCESS! ==="
+      debug:
+        msg: |
+          ╔══════════════════════════════════════════╗
+          ║   K8s CLUSTER IS LIVE ON AWS!             ║
+          ║                                          ║
+          ║   Master:   {{ ansible_host }}           ║
+          ║   Nodes:    3 (1 master + 2 workers)     ║
+          ║                                          ║
+          ║   To use kubectl locally:                ║
+          ║   export KUBECONFIG=./kubeconfig-aws     ║
+          ╚══════════════════════════════════════════╝

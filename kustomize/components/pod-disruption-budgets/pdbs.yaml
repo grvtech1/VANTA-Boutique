@@ -1,0 +1,65 @@
+# =============================================================================
+# PodDisruptionBudgets — Protect services during voluntary disruptions
+# =============================================================================
+# WHY: Without PDBs, draining a node for maintenance can evict ALL replicas
+#      of a service simultaneously, causing a full outage.
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cartservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cartservice
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: checkoutservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: checkoutservice
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: currencyservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: currencyservice
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: paymentservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: paymentservice
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-cart-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis-cart

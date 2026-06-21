@@ -1,0 +1,46 @@
+# =============================================================================
+# ConfigMap for CurrencyService
+# =============================================================================
+#
+# WHAT IS A CONFIGMAP?
+#   A Kubernetes object that stores NON-SENSITIVE configuration data as
+#   key-value pairs. Pods can consume ConfigMaps as environment variables
+#   or as mounted files.
+#
+# WHY USE IT?
+#   The 12-Factor App Principle #3: "Store config in the environment"
+#
+#   WITHOUT ConfigMap (BAD):
+#     env:
+#     - name: DISABLE_PROFILER
+#       value: "1"                <-- hardcoded in YAML, needs redeploy to change
+#
+#   WITH ConfigMap (GOOD):
+#     envFrom:
+#     - configMapRef:
+#         name: currency-config   <-- change ConfigMap, restart pod = new config!
+#                                      NO need to rebuild Docker image!
+#
+# REAL-WORLD USES:
+#   - Feature flags (enable/disable features without code change)
+#   - Log levels (debug in dev, warn in production)
+#   - Service endpoints (different DB URLs for dev/staging/prod)
+#   - Application tuning parameters
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: currency-config
+  namespace: boutique
+  labels:
+    app: currencyservice
+    managed-by: devops-learning
+data:
+  # These key-value pairs become environment variables in the pod
+  PORT: "7000"
+  DISABLE_PROFILER: "1"
+  DISABLE_DEBUGGER: "1"
+  # In production, you might add:
+  # LOG_LEVEL: "info"
+  # DEFAULT_CURRENCY: "USD"
+  # CACHE_TTL: "300"
