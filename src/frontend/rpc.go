@@ -116,6 +116,20 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 	return out, err
 }
 
+func (fe *frontendServer) getReviews(ctx context.Context, productID string) ([]*pb.Review, float32, error) {
+	if fe.reviewsSvcConn == nil {
+		return nil, 0, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
+	defer cancel()
+	resp, err := pb.NewReviewsServiceClient(fe.reviewsSvcConn).
+		GetReviews(ctx, &pb.GetReviewsRequest{ProductId: productID})
+	if err != nil {
+		return nil, 0, err
+	}
+	return resp.GetReviews(), resp.GetAverageRating(), nil
+}
+
 func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()

@@ -50,6 +50,9 @@ var (
 				Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
+			"renderStars": func(rating int32) string {
+				return strings.Repeat("★", int(rating)) + strings.Repeat("☆", 5-int(rating))
+			},
 		}).ParseGlob("templates/*.html"))
 	plat platformDetails
 )
@@ -180,6 +183,11 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
 
+	reviews, avgRating, err := fe.getReviews(r.Context(), id)
+	if err != nil {
+		log.WithField("error", err).Warn("failed to get product reviews")
+	}
+
 	product := struct {
 		Item  *pb.Product
 		Price *pb.Money
@@ -203,6 +211,8 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		"recommendations": recommendations,
 		"cart_size":       cartSize(cart),
 		"packagingInfo":   packagingInfo,
+		"reviews":         reviews,
+		"avg_rating":      avgRating,
 	})); err != nil {
 		log.Println(err)
 	}

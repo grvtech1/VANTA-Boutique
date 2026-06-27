@@ -56,6 +56,32 @@
     </div>
   </section>
 
+  {{ if $.reviews }}
+  <section class="product-reviews">
+    <div class="vanta-container">
+      <div class="reviews-header">
+        <h3>Customer Reviews</h3>
+        {{ if gt $.avg_rating 0.0 }}
+        <span class="reviews-avg">{{ printf "%.1f" $.avg_rating }} / 5.0</span>
+        {{ end }}
+      </div>
+      <div class="reviews-list">
+        {{ range $.reviews }}
+        <div class="review-card">
+          <div class="review-card-header">
+            <span class="review-stars">{{ renderStars .Rating }}</span>
+            <span class="review-author">{{ .Author }}</span>
+          </div>
+          {{ if .Comment }}
+          <p class="review-comment">{{ .Comment }}</p>
+          {{ end }}
+        </div>
+        {{ end }}
+      </div>
+    </div>
+  </section>
+  {{ end }}
+
   {{ if $.recommendations }}
     {{ template "recommendations" $ }}
   {{ end }}
