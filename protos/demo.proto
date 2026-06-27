@@ -260,3 +260,47 @@ message Ad {
     // short advertisement text to display.
     string text = 2;
 }
+
+// ------------Reviews service------------------
+//
+// A product reviews & ratings service. Lets customers read reviews for a
+// product and submit a new rating (1-5) with a comment. Added to demonstrate
+// building and integrating a new microservice into the polyglot mesh.
+
+service ReviewsService {
+    rpc GetReviews(GetReviewsRequest) returns (GetReviewsResponse) {}
+    rpc AddReview(AddReviewRequest) returns (AddReviewResponse) {}
+}
+
+message Review {
+    string review_id = 1;
+    string product_id = 2;
+    string author = 3;
+    // Star rating, 1-5 inclusive.
+    int32 rating = 4;
+    string comment = 5;
+    // Creation time as a Unix epoch (seconds).
+    int64 created_at_unix = 6;
+}
+
+message GetReviewsRequest {
+    string product_id = 1;
+}
+
+message GetReviewsResponse {
+    repeated Review reviews = 1;
+    // Mean of all ratings for the product (0 when there are none).
+    float average_rating = 2;
+    int32 count = 3;
+}
+
+message AddReviewRequest {
+    string product_id = 1;
+    string author = 2;
+    int32 rating = 3;
+    string comment = 4;
+}
+
+message AddReviewResponse {
+    Review review = 1;
+}

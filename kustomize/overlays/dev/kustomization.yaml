@@ -25,6 +25,8 @@ replicas:
     count: 1
   - name: recommendationservice
     count: 1
+  - name: reviewsservice
+    count: 1
   - name: shippingservice
     count: 1
 
