@@ -8,10 +8,10 @@
 set -e
 export PATH=/home/gaurav/.local/bin:/usr/bin:/bin:$PATH
 
-MASTER_IP="3.111.11.116"
+MASTER_IP="15.206.221.59"
 MASTER_PRIVATE_IP="10.0.1.10"
-WORKER1_IP="3.108.60.70"
-WORKER2_IP="65.0.96.208"
+WORKER1_IP="13.206.95.146"
+WORKER2_IP="13.206.145.240"
 KEY="$HOME/online-boutique/terraform/k8s-key.pem"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=30 -i $KEY"
 

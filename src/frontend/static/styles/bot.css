@@ -1,166 +1,183 @@
-.chat-modal {
-  width: 100%;
-  height: 85vh;
-  margin-top: 50px;
-  background-color: #EEE;
-  border-radius: 16px;
-  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-  overflow: auto;
-  display: block;
-}
+/* =============================================================================
+ * VANTA — AI Shopping Assistant Styles
+ * ============================================================================= */
 
-@keyframes scale-in {
-  0% {
-    scale: 0;
-  }
-  100% {
-    scale: 1;
-  }
-}
-
-
-.bot-messages {
-  overflow: auto;
-  height: calc(100% - 100px);
-  scroll-snap-align: end;
-}
-
-.bot-message {
-  position: relative;
-  margin: 16px;
-  padding: 16px;
-  margin-right: 20%;
-  border-radius: 16px;
-  background-color: white;
-  min-height: 55px;
-}
-
-.bot-message-loading {
-  -webkit-mask:linear-gradient(-60deg,#000 30%,#0005,#000 70%) right/300% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.user-message {
-  position: relative;
-  margin: 16px;
-  margin-left: 20%;
-  padding: 16px;
-  border-radius: 16px;
-  background-color: var(--blue);
-}
-
-.bot-input {
+.assistant-page {
   display: flex;
-  position: absolute;
-  bottom: 0;
-  width: -webkit-fill-available;
-  margin: 16px;
-  margin-right: 32px;
-  padding: 16px;
-  border-radius: 16px;
-  background-color: white;
+  flex-direction: column;
+  height: calc(100vh - var(--navbar-height));
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-lg);
 }
 
-.bot-input-file-button {
-  padding-top: 5px;
+.assistant-header {
+  text-align: center;
+  padding: var(--space-xl) 0;
 }
 
-.bot-input-text {
-  border: none;
-  border-bottom: 1px solid #9AA0A6;
-  padding: 0 0 8px 16px;
-  outline: none;
-  color: #1E2021;
-  width: -webkit-fill-available;
+.assistant-header h2 {
+  font-size: 24px;
+  margin-bottom: var(--space-sm);
 }
 
-.user-message-text {
-  color: white;
-}
-
-.user-image-div {
-  position: relative;
-  width: 100%;
-  height: 150px;
-}
-
-.user-image {
-  position: absolute;
-  right: 0;
-  border-radius: 16px;
-  margin-right: 16px;
-  height: 150px;
-}
-
-.bot-input-button {
-  display: inline-block;
-  border: solid 1px var(--blue);
-  padding: 8px 16px;
-  outline: none;
+.assistant-header p {
+  color: var(--text-secondary);
   font-size: 14px;
-  border-radius: 22px;
-  cursor: pointer;
-  background-color: var(--blue);
+}
+
+/* Chat messages area */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--border-glass);
+  border-radius: var(--radius-full);
+}
+
+/* Message bubbles */
+.chat-message {
+  max-width: 80%;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  line-height: 1.6;
+  animation: messageSlideIn 0.3s var(--ease-out);
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  background: var(--accent-gradient);
   color: white;
+  border-bottom-right-radius: var(--space-xs);
 }
 
-.bot-input-button:disabled,
-button[disabled]{
-  border: 1px solid #999999;
-  background-color: #cccccc;
-  color: #666666;
+.chat-message.bot {
+  align-self: flex-start;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  border-bottom-left-radius: var(--space-xs);
 }
 
-.bot-products {
-  margin-left: 16px;
-  margin-right: 20%;
+@keyframes messageSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.bot-product {
-  height: 150px;
-  margin-bottom: 16px;
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  border-bottom-left-radius: var(--space-xs);
+  width: fit-content;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: typingBounce 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+/* Chat input */
+.chat-input-area {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--border-glass);
+}
+
+.chat-input-area input,
+.chat-input-area textarea {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--duration-fast);
+  resize: none;
+}
+
+.chat-input-area input:focus,
+.chat-input-area textarea:focus {
+  border-color: var(--accent);
+}
+
+.chat-input-area button,
+.chat-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  border-radius: 16px;
-  background-color: white;
-  color: black;
+  justify-content: center;
+  transition: all var(--duration-fast);
+  flex-shrink: 0;
 }
 
-.bot-product-img {
-  height: 150px;
-  border-top-left-radius: 16px;
-  border-bottom-left-radius: 16px;
-  margin-right: 16px;
+.chat-input-area button:hover,
+.chat-send-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--accent-glow);
 }
 
-.bot-product-description {
-  float: right;
-  width: calc(100% - 180px);
+/* Product cards in chat */
+.chat-product-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: var(--space-sm);
+  transition: all var(--duration-normal);
 }
 
-@keyframes typing {
-  0% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+.chat-product-card:hover {
+  border-color: var(--border-accent);
 }
 
-.shimmer {
-  color: grey;
-  display:inline-block;
-  -webkit-mask:linear-gradient(-60deg,#000 30%,#0005,#000 70%) right/300% 100%;
-  background-repeat: no-repeat;
-  animation: shimmer 2.5s infinite;
-  font-size: 50px;
-  max-width:200px;
-  filter: invert(21%) sepia(100%) saturate(7414%) hue-rotate(210deg) brightness(50%) contrast(117%);
+.chat-product-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
 }
 
-@keyframes shimmer {
-  100% {-webkit-mask-position:left}
+.chat-product-card .product-info {
+  padding: var(--space-sm) var(--space-md);
 }

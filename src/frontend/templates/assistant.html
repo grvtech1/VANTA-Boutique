@@ -1,213 +1,79 @@
 <!--
- Copyright 2020 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+ Copyright 2024 Google LLC
+ Licensed under the Apache License, Version 2.0
 -->
 
 {{ define "assistant" }}
 
 {{ template "header" . }}
-<div {{ with $.platform_css }} class="{{.}}" {{ end }}>
-  <span class="platform-flag">
-    {{$.platform_name}}
-  </span>
-</div>
 
-<main role="main">
-  <div class="container">
-    <div class="row">
-      <div class="col-md-12">
-        <div id="chat-modal" class="chat-modal">
-          <div id="bot-messages" class="bot-messages">
-            <p class="bot-message">
-              <span class="bot-message-text">Hi, I'm the Cymbal Shops assistant. I can help you with your shopping experience.</span>
-            </p>
-            <p class="bot-message">
-              <span class="bot-message-text">What can I help you with?</span>
-            </p>
-          </div>
-          <div class="bot-input">
-            <input id="bot-input-text" type="text" style="margin-right: 30px;" class="bot-input-text" placeholder="Recommend me items...">
-            <input type="file" class="bot-input-file-button"  onchange="getBase64()">
-            <button id="bot-input-button" class="bot-input-button">Send</button>
-          </div>
-        </div>
+<main>
+  <div class="assistant-page">
+    <div class="assistant-header">
+      <h2>VANTA AI Assistant</h2>
+      <p>Ask anything about our products, styling recommendations, or order assistance.</p>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-message bot">
+        Hello! I'm your VANTA shopping assistant. How can I help you discover our premium items today?
       </div>
     </div>
+
+    <form class="chat-input-area" id="chat-form" onsubmit="event.preventDefault(); sendMessage();">
+      <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" required>
+      <button type="submit" class="chat-send-btn" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </form>
   </div>
 </main>
 
+{{ template "footer" . }}
+
 <script>
-  var image;
-  function getBase64 ()  {
-    var file = document.querySelector('input[type=file]')['files'][0];
-    var reader = new FileReader();
-    var baseString;
-    reader.onloadend = function () {
-      baseString = reader.result;
-      console.log(baseString);
-      image = baseString;
-    };
-    reader.readAsDataURL(file);
-  }
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const messages = document.getElementById('chat-messages');
+  const text = input.value.trim();
+  if (!text) return;
 
-  function extractIdsFromString(message) {
-    const idPattern = /\[([a-zA-Z0-9-]+)\]/g;
-    const matches = message.matchAll(idPattern);
-    const ids = [];
-    for (const match of matches) {
-      ids.push(match[1]);
-    }
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-message user';
+  userMsg.textContent = text;
+  messages.appendChild(userMsg);
+  input.value = '';
+  messages.scrollTop = messages.scrollHeight;
 
-    return ids;
-  }
+  const typing = document.createElement('div');
+  typing.className = 'typing-indicator';
+  typing.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  messages.appendChild(typing);
+  messages.scrollTop = messages.scrollHeight;
 
-  const chatModal = document.getElementById("chat-modal");
-  const botMessages = document.getElementById("bot-messages");
-  const botbutton = document.getElementById("bot-input-button");
-  const botinput = document.getElementById("bot-input-text");
-
-  async function main() {
-    botbutton.addEventListener("click", handleButtonClick);
-
-    botinput.addEventListener("keypress", (event) => {
-      if (event.key === "Enter") {
-        botbutton.click();
-      }
+  try {
+    const res = await fetch('{{ $.baseUrl }}/bot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
     });
+    const data = await res.json();
+    typing.remove();
+
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-message bot';
+    botMsg.textContent = data.response || "I'm sorry, I couldn't process that request right now.";
+    messages.appendChild(botMsg);
+    messages.scrollTop = messages.scrollHeight;
+  } catch (err) {
+    typing.remove();
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-message bot';
+    botMsg.textContent = "Unable to connect to assistant service.";
+    messages.appendChild(botMsg);
+    messages.scrollTop = messages.scrollHeight;
   }
-
-  async function handleButtonClick() {
-    if(!botinput.value || !botinput.value.trim){
-      return;
-    }
-
-    // Construct and render user message
-    console.log("bot button clicked");
-    const message = botinput.value;
-    console.log("message: " + message);
-    const usermessage = document.createElement("p");
-    const userMessageSpan = document.createElement("span");
-    const imageDivElement = document.createElement("div");
-    imageDivElement.classList.add("user-image-div")
-    const imageElement = document.createElement("img");
-    imageElement.src = image;
-    imageElement.classList.add("user-image");
-    imageElement.onerror = function() { this.style.display = 'none'; };
-    userMessageSpan.innerText = message;
-    userMessageSpan.classList.add("user-message-text");
-    usermessage.classList.add("user-message");
-    usermessage.appendChild(userMessageSpan);
-    botMessages.appendChild(usermessage);
-    imageDivElement.appendChild(imageElement);
-    botMessages.appendChild(imageDivElement);
-    botMessages.scrollTo(0, botMessages.scrollHeight);
-    botinput.value = "";
-
-    // Disable send button and input field
-    botbutton.disabled = true;
-    botinput.disabled = true;
-    console.log("bot is typing");
-
-    // Construct and render placeholder bot message
-    const botMessage = document.createElement("p");
-    botMessage.classList.add("bot-message-loading");
-    const botMessageSpan = document.createElement("span");
-    botMessageSpan.innerText = ""
-    botMessageSpan.classList.add("bot-message-text");
-    botMessage.classList.add("bot-message");
-    botMessage.appendChild(botMessageSpan);
-    botMessages.appendChild(botMessage);
-    botMessages.scrollTo(0, botMessages.scrollHeight);
-
-    // Request a response from the Shopping Assistant
-    const response = await fetch("{{ $.baseUrl }}/bot", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: message,
-        image: image
-      }),
-    });
-    const responseJson = await response.json();
-    console.log(responseJson);
-
-    // Fetch the product IDs from the response
-    const extractedIds = extractIdsFromString(responseJson.message);
-    console.log(extractedIds);
-
-    // Replace the placeholder bot message text with the real response
-    // Making sure to remove any lists or product IDs from that message
-    botMessageSpan.innerText = responseJson.message.replace(/\n+[-*\d][\S\s]*/g, "");
-    botMessage.classList.remove("bot-message-loading");
-
-    // If there are any product IDs...
-    if (extractedIds.length > 0) {
-      // Construct root products div
-      const botProductsDiv = document.createElement("div");
-      botProductsDiv.classList.add("bot-products");
-
-      // For each product...
-      for (const id of extractedIds) {
-        // Retrieve product metadata from the Product Catalog
-        const productResponse = await fetch("{{ $.baseUrl }}/product-meta/" + id, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        const product = await productResponse.json();
-
-        // Construct main product div
-        const botProductDiv = document.createElement("a");
-        botProductDiv.classList.add("bot-product");
-        botProductDiv.href = "{{ $.baseUrl }}/product/" + id;
-
-        // Construct product image
-        const botProductImg = document.createElement("img");
-        botProductImg.src = product["picture"];
-        botProductImg.classList.add("bot-product-img");
-        botProductImg.onerror = function() { this.style.display = 'none'; };
-        botProductDiv.appendChild(botProductImg);
-
-        // Construct product description div
-        const botProductDescription = document.createElement("div");
-        botProductDescription.classList.add("bot-product-description");
-        let productDescription = product["description"];
-        if (productDescription.length > 350) { // Shorten descriptions that are too long
-          productDescription = productDescription.substring(0, 330) + '...';
-        }
-        botProductDescription.innerHTML = "<b>" + product["name"] + "</b><br>" + productDescription;
-        botProductDiv.appendChild(botProductDescription);
-
-        // Append main product div into the root products div
-        botProductsDiv.appendChild(botProductDiv);
-      }
-      // Render products
-      botMessages.appendChild(botProductsDiv)
-    }
-
-    botMessages.scrollTo(0, botMessages.scrollHeight);
-
-    // Re-enable button and input field
-    botbutton.disabled = false;
-    botinput.disabled = false;
-    botinput.focus();
-  }
-
-  main();
+}
 </script>
 
 {{ end }}
