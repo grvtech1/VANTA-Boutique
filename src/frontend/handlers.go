@@ -53,6 +53,15 @@ var (
 			"renderStars": func(rating int32) string {
 				return strings.Repeat("★", int(rating)) + strings.Repeat("☆", 5-int(rating))
 			},
+			"renderDate": func(unix int64) string {
+				if unix == 0 {
+					return ""
+				}
+				return time.Unix(unix, 0).UTC().Format("Jan 2, 2006")
+			},
+			"roundRating": func(f float32) int32 {
+				return int32(f + 0.5)
+			},
 		}).ParseGlob("templates/*.html"))
 	plat platformDetails
 )
@@ -213,9 +222,66 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		"packagingInfo":   packagingInfo,
 		"reviews":         reviews,
 		"avg_rating":      avgRating,
+		"reviews_enabled": fe.reviewsSvcConn != nil,
+		"reviews_jsonld":  reviewsJSONLD(p, reviews, avgRating),
 	})); err != nil {
 		log.Println(err)
 	}
+}
+
+// reviewsJSONLD builds a schema.org Product + AggregateRating + Review document
+// so search engines can surface star ratings as rich results on the product
+// page. It returns template.HTML for embedding inside a <script> tag; json
+// marshalling escapes "<" so the payload cannot break out of the script.
+func reviewsJSONLD(p *pb.Product, reviews []*pb.Review, avg float32) template.HTML {
+	type ldRating struct {
+		Type        string  `json:"@type"`
+		RatingValue float32 `json:"ratingValue"`
+		BestRating  int     `json:"bestRating"`
+	}
+	type ldReview struct {
+		Type          string   `json:"@type"`
+		Author        string   `json:"author"`
+		ReviewRating  ldRating `json:"reviewRating"`
+		ReviewBody    string   `json:"reviewBody,omitempty"`
+		DatePublished string   `json:"datePublished,omitempty"`
+	}
+	doc := map[string]interface{}{
+		"@context":    "https://schema.org",
+		"@type":       "Product",
+		"name":        p.GetName(),
+		"description": p.GetDescription(),
+		"sku":         p.GetId(),
+	}
+	if len(reviews) == 0 {
+		return ""
+	}
+	doc["aggregateRating"] = map[string]interface{}{
+		"@type":       "AggregateRating",
+		"ratingValue": avg,
+		"reviewCount": len(reviews),
+		"bestRating":  5,
+	}
+	ldReviews := make([]ldReview, 0, len(reviews))
+	for _, rv := range reviews {
+		lr := ldReview{
+			Type:         "Review",
+			Author:       rv.GetAuthor(),
+			ReviewRating: ldRating{Type: "Rating", RatingValue: float32(rv.GetRating()), BestRating: 5},
+			ReviewBody:   rv.GetComment(),
+		}
+		if rv.GetCreatedAtUnix() > 0 {
+			lr.DatePublished = time.Unix(rv.GetCreatedAtUnix(), 0).UTC().Format("2006-01-02")
+		}
+		ldReviews = append(ldReviews, lr)
+	}
+	doc["review"] = ldReviews
+
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return ""
+	}
+	return template.HTML(b)
 }
 
 func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Request) {
@@ -243,6 +309,34 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.Header().Set("location", baseUrl + "/cart")
+	w.WriteHeader(http.StatusFound)
+}
+
+func (fe *frontendServer) addReviewHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		renderHTTPError(log, r, w, errors.New("product id not specified"), http.StatusBadRequest)
+		return
+	}
+
+	rating, err := strconv.ParseInt(r.FormValue("rating"), 10, 32)
+	if err != nil || rating < 1 || rating > 5 {
+		renderHTTPError(log, r, w, errors.New("rating must be between 1 and 5"), http.StatusUnprocessableEntity)
+		return
+	}
+	author := strings.TrimSpace(r.FormValue("author"))
+	comment := strings.TrimSpace(r.FormValue("comment"))
+
+	if err := fe.addReview(r.Context(), id, author, int32(rating), comment); err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "failed to submit review"), http.StatusInternalServerError)
+		return
+	}
+	log.WithField("product", id).WithField("rating", rating).Info("review submitted")
+
+	// Post/Redirect/Get: send the browser back to the product page so a refresh
+	// doesn't re-submit the review. The anchor jumps straight to the reviews.
+	w.Header().Set("location", baseUrl+"/product/"+id+"#reviews")
 	w.WriteHeader(http.StatusFound)
 }
 

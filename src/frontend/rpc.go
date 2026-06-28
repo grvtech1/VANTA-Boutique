@@ -130,6 +130,22 @@ func (fe *frontendServer) getReviews(ctx context.Context, productID string) ([]*
 	return resp.GetReviews(), resp.GetAverageRating(), nil
 }
 
+func (fe *frontendServer) addReview(ctx context.Context, productID, author string, rating int32, comment string) error {
+	if fe.reviewsSvcConn == nil {
+		return errors.New("reviews service is not configured")
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	_, err := pb.NewReviewsServiceClient(fe.reviewsSvcConn).
+		AddReview(ctx, &pb.AddReviewRequest{
+			ProductId: productID,
+			Author:    author,
+			Rating:    rating,
+			Comment:   comment,
+		})
+	return err
+}
+
 func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()

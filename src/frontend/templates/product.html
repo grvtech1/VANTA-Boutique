@@ -56,30 +56,70 @@
     </div>
   </section>
 
-  {{ if $.reviews }}
-  <section class="product-reviews">
+  {{ if $.reviews_enabled }}
+  <section class="product-reviews" id="reviews" aria-labelledby="reviews-heading">
     <div class="vanta-container">
       <div class="reviews-header">
-        <h3>Customer Reviews</h3>
+        <h3 id="reviews-heading">Customer Reviews</h3>
         {{ if gt $.avg_rating 0.0 }}
-        <span class="reviews-avg">{{ printf "%.1f" $.avg_rating }} / 5.0</span>
-        {{ end }}
-      </div>
-      <div class="reviews-list">
-        {{ range $.reviews }}
-        <div class="review-card">
-          <div class="review-card-header">
-            <span class="review-stars">{{ renderStars .Rating }}</span>
-            <span class="review-author">{{ .Author }}</span>
-          </div>
-          {{ if .Comment }}
-          <p class="review-comment">{{ .Comment }}</p>
-          {{ end }}
+        <div class="reviews-avg">
+          <span class="review-stars" role="img" aria-label="Average rating {{ printf "%.1f" $.avg_rating }} out of 5">{{ renderStars (roundRating $.avg_rating) }}</span>
+          <span class="reviews-avg-value">{{ printf "%.1f" $.avg_rating }}</span>
+          <span class="reviews-avg-out">/ 5.0 &middot; {{ len $.reviews }} review{{ if ne (len $.reviews) 1 }}s{{ end }}</span>
         </div>
         {{ end }}
       </div>
+
+      {{ if $.reviews }}
+      <ul class="reviews-list">
+        {{ range $.reviews }}
+        <li>
+          <article class="review-card">
+            <div class="review-card-header">
+              <span class="review-stars" role="img" aria-label="Rated {{ .Rating }} out of 5 stars">{{ renderStars .Rating }}</span>
+              <span class="review-author">{{ .Author }}</span>
+              {{ if .CreatedAtUnix }}
+              <time class="review-date" datetime="{{ .CreatedAtUnix }}">{{ renderDate .CreatedAtUnix }}</time>
+              {{ end }}
+            </div>
+            {{ if .Comment }}
+            <p class="review-comment">{{ .Comment }}</p>
+            {{ end }}
+          </article>
+        </li>
+        {{ end }}
+      </ul>
+      {{ else }}
+      <p class="reviews-empty">No reviews yet. Be the first to review {{ $.product.Item.Name }}.</p>
+      {{ end }}
+
+      <form class="review-form" method="POST" action="{{ $.baseUrl }}/product/{{ $.product.Item.Id }}/reviews">
+        <h4>Write a review</h4>
+        <div class="review-form-row">
+          <label for="review-author">Name</label>
+          <input type="text" id="review-author" name="author" maxlength="80" placeholder="Anonymous" autocomplete="name">
+        </div>
+        <div class="review-form-row">
+          <label for="review-rating">Rating</label>
+          <select id="review-rating" name="rating" required>
+            <option value="5">★★★★★ — Excellent</option>
+            <option value="4">★★★★☆ — Good</option>
+            <option value="3">★★★☆☆ — Average</option>
+            <option value="2">★★☆☆☆ — Poor</option>
+            <option value="1">★☆☆☆☆ — Bad</option>
+          </select>
+        </div>
+        <div class="review-form-row">
+          <label for="review-comment">Comment</label>
+          <textarea id="review-comment" name="comment" rows="3" maxlength="1000" placeholder="Share your experience…"></textarea>
+        </div>
+        <button type="submit" class="cymbal-button-primary">Submit Review</button>
+      </form>
     </div>
   </section>
+  {{ if $.reviews_jsonld }}
+  <script type="application/ld+json">{{ $.reviews_jsonld }}</script>
+  {{ end }}
   {{ end }}
 
   {{ if $.recommendations }}
