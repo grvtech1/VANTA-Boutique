@@ -61,12 +61,16 @@ func TestAverage(t *testing.T) {
 }
 
 func TestStoreAddAndList(t *testing.T) {
+	ctx := context.Background()
 	s := newReviewStore(nil, 0)
-	s.Add("PROD1", "Alice", 5, "great")
-	s.Add("PROD1", "Bob", 3, "ok")
-	s.Add("PROD2", "Carol", 4, "nice")
+	s.Add(ctx, "PROD1", "Alice", 5, "great")
+	s.Add(ctx, "PROD1", "Bob", 3, "ok")
+	s.Add(ctx, "PROD2", "Carol", 4, "nice")
 
-	reviews, avg := s.List("PROD1")
+	reviews, avg, err := s.List(ctx, "PROD1")
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
 	if len(reviews) != 2 {
 		t.Fatalf("PROD1 review count = %d, want 2", len(reviews))
 	}
@@ -74,28 +78,30 @@ func TestStoreAddAndList(t *testing.T) {
 		t.Errorf("PROD1 average = %v, want 4", avg)
 	}
 
-	if _, avg := s.List("UNKNOWN"); !almostEqual(avg, 0) {
+	if _, avg, _ := s.List(ctx, "UNKNOWN"); !almostEqual(avg, 0) {
 		t.Errorf("unknown product average = %v, want 0", avg)
 	}
 }
 
 func TestStoreListNewestFirst(t *testing.T) {
+	ctx := context.Background()
 	s := newReviewStore(nil, 0)
-	first := s.Add("P", "A", 5, "first")
+	first, _ := s.Add(ctx, "P", "A", 5, "first")
 	// CreatedAtUnix has 1s resolution; force a deterministic ordering.
 	first.CreatedAtUnix = 100
-	second := s.Add("P", "B", 4, "second")
+	second, _ := s.Add(ctx, "P", "B", 4, "second")
 	second.CreatedAtUnix = 200
 
-	reviews, _ := s.List("P")
+	reviews, _, _ := s.List(ctx, "P")
 	if len(reviews) != 2 || reviews[0].Comment != "second" {
 		t.Fatalf("expected newest-first ordering, got %+v", reviews)
 	}
 }
 
 func TestStoreDefaultsAnonymous(t *testing.T) {
+	ctx := context.Background()
 	s := newReviewStore(nil, 0)
-	r := s.Add("PROD1", "", 4, "no name")
+	r, _ := s.Add(ctx, "PROD1", "", 4, "no name")
 	if r.Author != "Anonymous" {
 		t.Errorf("Author = %q, want Anonymous", r.Author)
 	}
@@ -105,12 +111,13 @@ func TestStoreDefaultsAnonymous(t *testing.T) {
 }
 
 func TestStoreBounded(t *testing.T) {
+	ctx := context.Background()
 	const cap = 5
 	s := newReviewStore(nil, cap)
 	for i := 0; i < 20; i++ {
-		s.Add("P", "A", 5, "c")
+		s.Add(ctx, "P", "A", 5, "c")
 	}
-	reviews, _ := s.List("P")
+	reviews, _, _ := s.List(ctx, "P")
 	if len(reviews) != cap {
 		t.Errorf("store kept %d reviews, want cap %d", len(reviews), cap)
 	}
@@ -119,15 +126,16 @@ func TestStoreBounded(t *testing.T) {
 // TestStoreConcurrent is intended to be run with -race to catch data races in
 // the store under simultaneous readers and writers.
 func TestStoreConcurrent(t *testing.T) {
+	ctx := context.Background()
 	s := newReviewStore(nil, 1000)
 	var wg sync.WaitGroup
 	for i := 0; i < 50; i++ {
 		wg.Add(2)
-		go func() { defer wg.Done(); s.Add("P", "writer", 5, "c") }()
-		go func() { defer wg.Done(); _, _ = s.List("P") }()
+		go func() { defer wg.Done(); s.Add(ctx, "P", "writer", 5, "c") }()
+		go func() { defer wg.Done(); _, _, _ = s.List(ctx, "P") }()
 	}
 	wg.Wait()
-	if reviews, _ := s.List("P"); len(reviews) != 50 {
+	if reviews, _, _ := s.List(ctx, "P"); len(reviews) != 50 {
 		t.Errorf("concurrent writes stored %d reviews, want 50", len(reviews))
 	}
 }

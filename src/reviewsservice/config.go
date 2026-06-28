@@ -29,6 +29,7 @@ import (
 type config struct {
 	port                 string
 	logLevel             logrus.Level
+	databaseURL          string
 	maxAuthorLen         int
 	maxCommentLen        int
 	maxReviewsPerProduct int
@@ -54,6 +55,7 @@ func loadConfig() config {
 	c := defaultConfig()
 	c.port = getEnv("PORT", c.port)
 	c.logLevel = parseLevel(getEnv("LOG_LEVEL", c.logLevel.String()))
+	c.databaseURL = getEnv("DATABASE_URL", "")
 	c.maxAuthorLen = getEnvInt("MAX_AUTHOR_LEN", c.maxAuthorLen)
 	c.maxCommentLen = getEnvInt("MAX_COMMENT_LEN", c.maxCommentLen)
 	c.maxReviewsPerProduct = getEnvInt("MAX_REVIEWS_PER_PRODUCT", c.maxReviewsPerProduct)

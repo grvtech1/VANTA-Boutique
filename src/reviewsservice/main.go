@@ -80,10 +80,12 @@ func main() {
 		}),
 	)
 
-	svc := &server{
-		store: newReviewStore(seedReviews(), cfg.maxReviewsPerProduct),
-		cfg:   cfg,
+	store := mustStore(cfg)
+	if closer, ok := store.(interface{ Close() }); ok {
+		defer closer.Close()
 	}
+
+	svc := &server{store: store, cfg: cfg}
 	pb.RegisterReviewsServiceServer(srv, svc)
 
 	healthSrv := health.NewServer()
@@ -95,6 +97,12 @@ func main() {
 	// Signal-aware context so SIGTERM (rolling updates) triggers a clean drain.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// When the store can report connectivity (Postgres), drive the gRPC health
+	// status from it so readiness reflects whether the DB is actually reachable.
+	if pinger, ok := store.(interface{ Ping(context.Context) error }); ok {
+		go watchStoreHealth(ctx, pinger, healthSrv)
+	}
 
 	serveErr := make(chan error, 1)
 	go func() {
@@ -131,6 +139,47 @@ func main() {
 	}
 }
 
+// mustStore selects the backing store: PostgreSQL when DATABASE_URL is set
+// (durable, shared across replicas), otherwise an in-memory store seeded for the
+// zero-dependency demo path. A misconfigured database fails fast at startup.
+func mustStore(cfg config) Store {
+	if cfg.databaseURL == "" {
+		log.Warn("DATABASE_URL not set — using in-memory store (single replica only; data is not durable)")
+		return newReviewStore(seedReviews(), cfg.maxReviewsPerProduct)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	pg, err := newPgStore(ctx, cfg.databaseURL, cfg.maxReviewsPerProduct)
+	if err != nil {
+		log.Fatalf("failed to initialize PostgreSQL store: %v", err)
+	}
+	log.Info("using PostgreSQL store")
+	return pg
+}
+
+// watchStoreHealth polls the store and reflects connectivity in the gRPC health
+// status until the context is cancelled (shutdown).
+func watchStoreHealth(ctx context.Context, pinger interface{ Ping(context.Context) error }, h *health.Server) {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			pctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			err := pinger.Ping(pctx)
+			cancel()
+			if err != nil {
+				log.WithField("error", err).Warn("store health check failed")
+				h.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
+			} else {
+				h.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+			}
+		}
+	}
+}
+
 // server implements the ReviewsService gRPC API.
 type server struct {
 	pb.UnimplementedReviewsServiceServer
@@ -145,7 +194,11 @@ func (s *server) GetReviews(ctx context.Context, in *pb.GetReviewsRequest) (*pb.
 		return nil, status.Error(codes.InvalidArgument, "product_id is required")
 	}
 
-	reviews, avg := s.store.List(productID)
+	reviews, avg, err := s.store.List(ctx, productID)
+	if err != nil {
+		log.WithFields(logrus.Fields{"product_id": productID, "error": err}).Error("store list failed")
+		return nil, status.Error(codes.Internal, "failed to load reviews")
+	}
 	log.WithFields(logrus.Fields{"product_id": productID, "count": len(reviews)}).Debug("GetReviews")
 	return &pb.GetReviewsResponse{
 		Reviews:       reviews,
@@ -175,7 +228,11 @@ func (s *server) AddReview(ctx context.Context, in *pb.AddReviewRequest) (*pb.Ad
 		return nil, status.Errorf(codes.InvalidArgument, "comment must be at most %d characters", s.cfg.maxCommentLen)
 	}
 
-	review := s.store.Add(productID, author, in.GetRating(), comment)
+	review, err := s.store.Add(ctx, productID, author, in.GetRating(), comment)
+	if err != nil {
+		log.WithFields(logrus.Fields{"product_id": productID, "error": err}).Error("store add failed")
+		return nil, status.Error(codes.Internal, "failed to save review")
+	}
 	log.WithFields(logrus.Fields{"product_id": productID, "rating": in.GetRating()}).Info("AddReview")
 	return &pb.AddReviewResponse{Review: review}, nil
 }
