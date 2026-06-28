@@ -56,10 +56,56 @@ pipeline that builds, tests, scans, and ships every service.
 
 ## 🏗 Architecture
 
-12 microservices talk to each other over gRPC; the Go **frontend** is the only
-HTTP-facing service. Find the **Protocol Buffer** definitions in [`./protos`](/protos).
+VANTA Boutique is a **gRPC mesh**: the Go **frontend** is the single HTTP edge, and every
+other service is an internal gRPC backend. Services are **stateless** and horizontally
+scalable; state lives in two backing stores — **Redis** (cart) and an optional
+**PostgreSQL** (reviews). The **checkout** service acts as the orchestrator, fanning out to
+cart, catalog, currency, shipping, payment, and email to complete an order. Contracts are
+defined once as **Protocol Buffers** in [`./protos`](/protos) and code-generated per language.
 
-[![Architecture of microservices](/docs/img/architecture-diagram.png)](/docs/img/architecture-diagram.png)
+```mermaid
+flowchart TD
+    user([👤 Shopper]):::ext
+    lg[loadgenerator · Py/Locust]:::ext
+
+    user -->|HTTP| fe
+    lg -. HTTP load .-> fe
+
+    fe["frontend · Go<br/>(HTTP edge)"]:::edge
+
+    %% frontend fan-out (gRPC)
+    fe -->|gRPC| pc[productcatalog · Go]
+    fe -->|gRPC| cur[currency · Node.js]
+    fe -->|gRPC| cart[cart · C#]
+    fe -->|gRPC| rec[recommendation · Py]
+    fe -->|gRPC| ship[shipping · Go]
+    fe -->|gRPC| ad[ad · Java]
+    fe -->|gRPC| rev["reviews · Go ⭐"]:::new
+    fe -->|gRPC| co[checkout · Go]
+
+    %% checkout orchestration (gRPC)
+    co -->|gRPC| cart
+    co -->|gRPC| pc
+    co -->|gRPC| cur
+    co -->|gRPC| ship
+    co -->|gRPC| pay[payment · Node.js]
+    co -->|gRPC| email[email · Py]
+
+    rec -->|gRPC| pc
+
+    %% data stores
+    cart --> redis[("Redis<br/>cart")]:::store
+    rev --> pg[("PostgreSQL<br/>reviews · optional")]:::store
+
+    classDef edge  fill:#7c5cff,stroke:#fff,color:#fff;
+    classDef new   fill:#9d7bff,stroke:#fff,color:#fff,stroke-width:2px;
+    classDef store fill:#244c5a,stroke:#fff,color:#fff;
+    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+```
+
+> **Telemetry:** services also emit traces/metrics to an optional OpenTelemetry collector
+> (`COLLECTOR_SERVICE_ADDR`), and a Gemini-powered shopping-assistant can be enabled via
+> [Kustomize components](/kustomize). Both are omitted above to keep the request path clear.
 
 | Service | Language | Description |
 | --- | --- | --- |
