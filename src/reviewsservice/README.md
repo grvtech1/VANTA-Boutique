@@ -67,3 +67,4 @@ grpcurl -plaintext -d '{"product_id":"OLJCESPC7Z","author":"Sam","rating":5,"com
 
 Integration test: set `TEST_DATABASE_URL` to run `TestPgStore` against a real
 PostgreSQL (skipped otherwise).
+
