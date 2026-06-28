@@ -35,6 +35,6 @@ COPY --from=builder /go/bin/reviewsservice /src/reviewsservice
 ENV PORT=50051
 
 ENV GOTRACEBACK=single
-.
+
 EXPOSE 50051
 ENTRYPOINT ["/src/reviewsservice"]
