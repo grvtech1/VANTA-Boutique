@@ -27,11 +27,12 @@ COPY . .
 ARG SKAFFOLD_GO_GCFLAGS
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-s -w" -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o /go/bin/reviewsservice .
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /src
 COPY --from=builder /go/bin/reviewsservice /src/reviewsservice
-ENV APP_PORT=50051
+# The server reads PORT (see config.go); keep this in sync with the manifest.
+ENV PORT=50051
 
 ENV GOTRACEBACK=single
 

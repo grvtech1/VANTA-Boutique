@@ -24,25 +24,38 @@ import (
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice/genproto"
 )
 
-// reviewStore is a concurrency-safe in-memory store of product reviews.
-//
-// This intentionally mirrors the demo's other stateless services: data is held
-// in memory and seeded at startup. Swapping this for Postgres/DynamoDB would be
-// a drop-in change behind the same list/add methods.
-type reviewStore struct {
-	mu       sync.RWMutex
-	byProduct map[string][]*pb.Review
+// Store is the persistence seam for reviews. The in-memory implementation below
+// is a deliberate, drop-in stand-in for a real datastore (Postgres/DynamoDB):
+// swap the implementation, keep this interface, and the gRPC layer is unchanged.
+type Store interface {
+	List(productID string) ([]*pb.Review, float32)
+	Add(productID, author string, rating int32, comment string) *pb.Review
 }
 
-func newReviewStore(seed map[string][]*pb.Review) *reviewStore {
+// reviewStore is a concurrency-safe, bounded, in-memory Store.
+//
+// NOTE: state is per-process and NOT shared across replicas. Run reviewsservice
+// as a SINGLE replica (no HPA) until this is backed by a shared datastore;
+// multiple replicas would each hold an independent, divergent copy of the data.
+type reviewStore struct {
+	mu            sync.RWMutex
+	byProduct     map[string][]*pb.Review
+	maxPerProduct int
+}
+
+func newReviewStore(seed map[string][]*pb.Review, maxPerProduct int) *reviewStore {
 	if seed == nil {
 		seed = map[string][]*pb.Review{}
 	}
-	return &reviewStore{byProduct: seed}
+	if maxPerProduct <= 0 {
+		maxPerProduct = 500
+	}
+	return &reviewStore{byProduct: seed, maxPerProduct: maxPerProduct}
 }
 
-// list returns a product's reviews (newest first) and the mean rating.
-func (s *reviewStore) list(productID string) ([]*pb.Review, float32) {
+// List returns a product's reviews (newest first) and the mean rating. The
+// returned slice is a defensive copy, safe for the caller to read without locks.
+func (s *reviewStore) List(productID string) ([]*pb.Review, float32) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -55,8 +68,10 @@ func (s *reviewStore) list(productID string) ([]*pb.Review, float32) {
 	return out, average(out)
 }
 
-// add stores a new review and returns it. Caller must validate rating range.
-func (s *reviewStore) add(productID, author string, rating int32, comment string) *pb.Review {
+// Add stores a new review and returns it. Callers must validate the rating range
+// and field lengths; the store only enforces the per-product cap. When the cap
+// is exceeded the oldest reviews are evicted so memory stays bounded.
+func (s *reviewStore) Add(productID, author string, rating int32, comment string) *pb.Review {
 	if author == "" {
 		author = "Anonymous"
 	}
@@ -71,7 +86,11 @@ func (s *reviewStore) add(productID, author string, rating int32, comment string
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.byProduct[productID] = append(s.byProduct[productID], review)
+	list := append(s.byProduct[productID], review)
+	if len(list) > s.maxPerProduct {
+		list = list[len(list)-s.maxPerProduct:]
+	}
+	s.byProduct[productID] = list
 	return review
 }
 
