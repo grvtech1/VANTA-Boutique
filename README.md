@@ -40,6 +40,7 @@ pipeline that builds, tests, scans, and ships every service.
   `nonroot` distroless image, and a dedicated **NetworkPolicy**.
 - ⚙️ **CI/CD** — GitHub Actions: `go vet`, **race-detector tests** with a Postgres service
   container, multi-service Docker builds, Trivy vulnerability scan, and an honest deploy gate.
+  The same pipeline is also provided as a **Jenkins declarative pipeline** ([`Jenkinsfile`](/Jenkinsfile)).
 - ☸️ **GitOps-ready deploy** — Kustomize base + `dev` overlay, an opt-in
   `reviews-persistence` component (Postgres + PVC + secret), runnable on **local kind** or a
   remote **AWS EC2** cluster via ArgoCD.
@@ -176,7 +177,7 @@ components:
 - **Data:** Redis (cart) · PostgreSQL / pgx (reviews)
 - **Packaging:** Multi-stage Docker, `distroless:nonroot`
 - **Orchestration:** Kubernetes · Kustomize (base + overlays + components)
-- **CI/CD:** GitHub Actions (vet, `-race` tests, Postgres service container, Trivy) · ArgoCD (GitOps)
+- **CI/CD:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy) · ArgoCD (GitOps)
 - **Frontend extras:** schema.org JSON-LD · accessible review components
 
 ## 📚 Documentation
