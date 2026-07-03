@@ -187,6 +187,7 @@ flowchart LR
 CNI) → `scripts/setup-argocd.sh` (install ArgoCD + register the Applications) → Helm-install the
 monitoring stack from `monitoring/`. **Then the day-to-day loop is automatic:** push → CI tests,
 builds, scans, and commits a new image tag → ArgoCD syncs the cluster → rolling update.
+Full step-by-step in the **[Platform runbook](/docs/PLATFORM.md)**.
 
 | Layer | Tooling | Where |
 | --- | --- | --- |
@@ -261,6 +262,7 @@ components:
 
 ## 📚 Documentation
 
+- [**Platform runbook**](/docs/PLATFORM.md) — provision AWS → form the cluster → GitOps → observability, step by step.
 - [Development guide](/docs/development-guide.md) — run and develop locally.
 - [Reviews service](/src/reviewsservice/README.md) — API, storage modes, and configuration.
 - [Adding a new microservice](/docs/adding-new-microservice.md).
