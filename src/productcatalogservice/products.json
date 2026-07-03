@@ -4,7 +4,7 @@
             "id": "OLJCESPC7Z",
             "name": "Aviator Sunglasses",
             "description": "A modern touch for any outfit — sleek aviator sunglasses with UV-grade lenses.",
-            "picture": "/static/img/products/aviator-sunglasses.svg",
+            "picture": "/static/img/products/aviator-sunglasses.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 19,
@@ -18,7 +18,7 @@
             "id": "66VCHSJNUP",
             "name": "Cropped Tank Top",
             "description": "Perfectly cropped combed-cotton tank with a scooped neckline.",
-            "picture": "/static/img/products/cropped-tank-top.svg",
+            "picture": "/static/img/products/cropped-tank-top.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
@@ -32,7 +32,7 @@
             "id": "1YMWWN1N4O",
             "name": "Gold-Tone Watch",
             "description": "A gold-tone stainless steel watch that pairs with everything you own.",
-            "picture": "/static/img/products/gold-tone-watch.svg",
+            "picture": "/static/img/products/gold-tone-watch.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 109,
@@ -46,7 +46,7 @@
             "id": "L9ECAV7KIM",
             "name": "Suede Loafers",
             "description": "Hand-finished suede loafers — a neat addition to your warm-weather wardrobe.",
-            "picture": "/static/img/products/suede-loafers.svg",
+            "picture": "/static/img/products/suede-loafers.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 89,
@@ -60,7 +60,7 @@
             "id": "2ZYFJ3GM2N",
             "name": "Travel Hairdryer",
             "description": "Lightweight dryer with 3 heat and speed settings — folds flat for travel.",
-            "picture": "/static/img/products/travel-hairdryer.svg",
+            "picture": "/static/img/products/travel-hairdryer.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 24,
@@ -74,7 +74,7 @@
             "id": "0PUK6V6EV0",
             "name": "Candle Holder",
             "description": "A small but intricately cast candle holder — an excellent gift.",
-            "picture": "/static/img/products/candle-holder.svg",
+            "picture": "/static/img/products/candle-holder.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
@@ -88,7 +88,7 @@
             "id": "LS4PSXUNUM",
             "name": "Salt & Pepper Shakers",
             "description": "A weighted ceramic duo to add some flavor to your table.",
-            "picture": "/static/img/products/salt-pepper-shakers.svg",
+            "picture": "/static/img/products/salt-pepper-shakers.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
@@ -116,7 +116,7 @@
             "id": "6E92ZMYYFZ",
             "name": "Ceramic Mug",
             "description": "A simple stoneware mug with a warm mustard glaze inside.",
-            "picture": "/static/img/products/ceramic-mug.svg",
+            "picture": "/static/img/products/ceramic-mug.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 8,
@@ -130,7 +130,7 @@
             "id": "VNTBELT001",
             "name": "Leather Belt",
             "description": "Full-grain leather belt with a brushed matte buckle.",
-            "picture": "/static/img/products/leather-belt.svg",
+            "picture": "/static/img/products/leather-belt.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 39,
@@ -158,7 +158,7 @@
             "id": "VNTBKPK003",
             "name": "Leather Backpack",
             "description": "A minimalist full-grain leather backpack with a padded 15\" laptop sleeve.",
-            "picture": "/static/img/products/leather-backpack.svg",
+            "picture": "/static/img/products/leather-backpack.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 129,
@@ -172,7 +172,7 @@
             "id": "VNTSHRT004",
             "name": "Linen Shirt",
             "description": "Breathable European linen shirt with a relaxed, tailored fit.",
-            "picture": "/static/img/products/linen-shirt.svg",
+            "picture": "/static/img/products/linen-shirt.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 49,
@@ -186,7 +186,7 @@
             "id": "VNTJCKT005",
             "name": "Denim Jacket",
             "description": "A structured mid-wash denim jacket built to break in beautifully.",
-            "picture": "/static/img/products/denim-jacket.svg",
+            "picture": "/static/img/products/denim-jacket.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 79,
@@ -200,7 +200,7 @@
             "id": "VNTSWTR006",
             "name": "Merino Sweater",
             "description": "Fine-gauge merino wool sweater — soft, warm, and never itchy.",
-            "picture": "/static/img/products/merino-sweater.svg",
+            "picture": "/static/img/products/merino-sweater.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 59,
@@ -214,7 +214,7 @@
             "id": "VNTSNKR007",
             "name": "Leather Sneakers",
             "description": "Clean minimalist leather sneakers on a cushioned cup sole.",
-            "picture": "/static/img/products/leather-sneakers.svg",
+            "picture": "/static/img/products/leather-sneakers.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 99,
@@ -228,7 +228,7 @@
             "id": "VNTBOOT008",
             "name": "Chelsea Boots",
             "description": "Timeless suede Chelsea boots with elastic side panels.",
-            "picture": "/static/img/products/chelsea-boots.svg",
+            "picture": "/static/img/products/chelsea-boots.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 139,
@@ -242,7 +242,7 @@
             "id": "VNTVASE009",
             "name": "Ceramic Vase",
             "description": "A hand-thrown matte ceramic vase with a sculptural silhouette.",
-            "picture": "/static/img/products/ceramic-vase.svg",
+            "picture": "/static/img/products/ceramic-vase.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 34,
@@ -284,7 +284,7 @@
             "id": "VNTCNDL012",
             "name": "Scented Candle",
             "description": "A hand-poured soy candle with notes of cedar, amber, and smoke.",
-            "picture": "/static/img/products/scented-candle.svg",
+            "picture": "/static/img/products/scented-candle.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 26,
@@ -298,7 +298,7 @@
             "id": "VNTVRHD013",
             "name": "VR Headset",
             "description": "An immersive standalone VR headset with inside-out tracking.",
-            "picture": "/static/img/products/vr-headset.svg",
+            "picture": "/static/img/products/vr-headset.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 199,
@@ -312,7 +312,7 @@
             "id": "VNTERBD014",
             "name": "Wireless Earbuds",
             "description": "Noise-cancelling wireless earbuds with a 24-hour charging case.",
-            "picture": "/static/img/products/wireless-earbuds.svg",
+            "picture": "/static/img/products/wireless-earbuds.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 89,
@@ -326,7 +326,7 @@
             "id": "VNTSPKR015",
             "name": "Smart Speaker",
             "description": "A room-filling smart speaker with a warm, balanced signature.",
-            "picture": "/static/img/products/smart-speaker.svg",
+            "picture": "/static/img/products/smart-speaker.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 69,
@@ -340,7 +340,7 @@
             "id": "VNTLAMP016",
             "name": "Desk Lamp",
             "description": "An adjustable aluminium desk lamp with stepless warm-to-cool dimming.",
-            "picture": "/static/img/products/desk-lamp.svg",
+            "picture": "/static/img/products/desk-lamp.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 44,

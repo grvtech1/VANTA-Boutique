@@ -36,9 +36,10 @@ pipeline that builds, tests, scans, and ships every service.
   pluggable **`Store` interface**: a bounded, concurrency-safe **in-memory** store by default,
   or a durable, shared **PostgreSQL** store (pgx/v5) for multi-replica deployments.
 - 🎨 **VANTA storefront** — a curated **25-product catalog across 6 categories** with a live
-  **category filter, search, and sort**, a **localStorage wishlist**, "New" badges, and a
-  unified set of **premium SVG product tiles** (per-category gradient art, zero external image
-  deps). Reviews on the product page (★ ratings, write-a-review form), rendered with
+  **category filter, search, and sort**, a **localStorage wishlist**, "New" badges, and
+  **real product photography** (bundled Unsplash imagery, self-contained — no runtime CDN
+  dependency; a few items use original branded SVG tiles). Reviews on the product page
+  (★ ratings, write-a-review form), rendered with
   accessibility (`aria-label`, semantic `<article>`/`<time>`) and **schema.org JSON-LD**
   (`AggregateRating`/`Review`) for rich search snippets.
 - 🛡️ **Production hardening** — graceful shutdown (`SIGTERM` → drain), gRPC message-size &
@@ -269,3 +270,7 @@ components:
 VANTA Boutique is built on Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo)
 sample and is licensed under **Apache-2.0** (see [`LICENSE`](/LICENSE)). The Reviews
 microservice, VANTA storefront, and CI/CD pipeline are additions by this project.
+
+Product photography is courtesy of [Unsplash](https://unsplash.com) (free under the
+[Unsplash License](https://unsplash.com/license)); a handful of items use original
+branded SVG tiles.
