@@ -11,7 +11,7 @@
   <section class="cart-page">
     <div class="vanta-container">
 
-      <h2 class="section-heading">Your Cart</h2>
+      <h2 class="section-heading">Your Cart{{ if $.items }} <span class="cart-count-inline">({{ len $.items }} item{{ if ne (len $.items) 1 }}s{{ end }})</span>{{ end }}</h2>
 
       {{ if not $.items }}
       <div class="cart-empty-state">

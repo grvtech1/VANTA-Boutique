@@ -102,7 +102,7 @@
             "id": "9SIQT8TOJO",
             "name": "Bamboo Glass Jar",
             "description": "A 1.7 L bamboo-lidded glass jar — airtight and kitchen-ready.",
-            "picture": "/static/img/products/bamboo-glass-jar.svg",
+            "picture": "/static/img/products/bamboo-glass-jar.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 5,
@@ -144,7 +144,7 @@
             "id": "VNTSCRF002",
             "name": "Silk Scarf",
             "description": "A lightweight mulberry-silk scarf with hand-rolled edges.",
-            "picture": "/static/img/products/silk-scarf.svg",
+            "picture": "/static/img/products/silk-scarf.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 29,
@@ -256,7 +256,7 @@
             "id": "VNTBORD010",
             "name": "Serving Board",
             "description": "An acacia serving board with a rounded handle and hanging hole.",
-            "picture": "/static/img/products/serving-board.svg",
+            "picture": "/static/img/products/serving-board.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 27,
@@ -270,7 +270,7 @@
             "id": "VNTROLL011",
             "name": "Facial Roller",
             "description": "A dual-ended stone facial roller to de-puff and refresh.",
-            "picture": "/static/img/products/facial-roller.svg",
+            "picture": "/static/img/products/facial-roller.jpg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 22,

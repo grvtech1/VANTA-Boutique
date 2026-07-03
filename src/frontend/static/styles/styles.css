@@ -862,3 +862,35 @@ footer .footer-built-by {
 .vpc-wish.is-saved svg { fill:#ff5c8a; stroke:#ff5c8a; }
 .vpc-wish.is-saved { animation: wish-pop var(--duration-normal) var(--ease-bounce); }
 @keyframes wish-pop { 0%{transform:scale(1);} 45%{transform:scale(1.28);} 100%{transform:scale(1);} }
+
+/* =============================================================================
+ * VANTA — Wishlist header/count, Saved filter, product zoom lightbox (added)
+ * ============================================================================= */
+.wish-size-circle { background: #ff5c8a; }
+#wish-header.cart-link:hover svg { color: #ff5c8a !important; }
+
+.cat-pill-saved.active { background: linear-gradient(135deg, #ff5c8a, #ff85a8); box-shadow: 0 8px 32px rgba(255,92,138,0.22); }
+
+/* Product-image zoom */
+.product-image-container img.zoomable { cursor: zoom-in; }
+
+.vanta-lightbox {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 4vmin; cursor: zoom-out;
+  background: rgba(6,6,10,0.86); backdrop-filter: blur(8px);
+  opacity: 0; transition: opacity var(--duration-normal) var(--ease-out);
+}
+.vanta-lightbox.open { opacity: 1; }
+.vanta-lightbox img {
+  max-width: min(92vw, 900px); max-height: 92vh; object-fit: contain;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  transform: scale(0.96); transition: transform var(--duration-normal) var(--ease-out);
+}
+.vanta-lightbox.open img { transform: scale(1); }
+
+/* Cart heading item count */
+.cart-count-inline { color: var(--text-muted); font-weight: 500; font-size: 0.7em; }
+
+/* Fix: [hidden] must beat .cart-size-circle display */
+.cart-size-circle[hidden] { display: none !important; }

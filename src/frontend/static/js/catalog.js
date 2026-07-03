@@ -1,18 +1,15 @@
 /*
  * VANTA — catalog interactions: category filter, live search, sort,
- * "New" badges, and a localStorage-backed wishlist.
+ * "New" badges, a localStorage wishlist (with header count + Saved filter),
+ * and a product-image zoom lightbox.
  * Progressive enhancement: with JS off, all products still render.
  */
 (function () {
   "use strict";
 
   var CAT_LABELS = {
-    "accessories": "Accessories",
-    "apparel": "Apparel",
-    "footwear": "Footwear",
-    "home-kitchen": "Home & Kitchen",
-    "beauty": "Beauty",
-    "tech": "Tech"
+    "accessories": "Accessories", "apparel": "Apparel", "footwear": "Footwear",
+    "home-kitchen": "Home & Kitchen", "beauty": "Beauty", "tech": "Tech"
   };
   var WISH_KEY = "vanta_wishlist";
 
@@ -22,7 +19,7 @@
     el.textContent = CAT_LABELS[slug] || slug;
   });
 
-  // --- wishlist helpers (shared) ---
+  // --- wishlist store ---
   function loadWish() {
     try { return new Set(JSON.parse(localStorage.getItem(WISH_KEY) || "[]")); }
     catch (e) { return new Set(); }
@@ -32,35 +29,66 @@
   }
   var wish = loadWish();
 
+  function updateWishHeader() {
+    var c = document.getElementById("wish-count");
+    if (!c) return;
+    if (wish.size > 0) { c.textContent = wish.size; c.hidden = false; }
+    else { c.hidden = true; }
+  }
+  updateWishHeader();
+
   function bindWish(btn) {
     var id = btn.getAttribute("data-id");
-    var saved = wish.has(id);
-    btn.classList.toggle("is-saved", saved);
-    btn.setAttribute("aria-pressed", saved ? "true" : "false");
-    btn.addEventListener("click", function (e) {
-      e.preventDefault(); e.stopPropagation();
-      if (wish.has(id)) { wish.delete(id); } else { wish.add(id); }
-      saveWish(wish);
+    function paint() {
       var on = wish.has(id);
       btn.classList.toggle("is-saved", on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    paint();
+    btn.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (wish.has(id)) wish.delete(id); else wish.add(id);
+      saveWish(wish); paint(); updateWishHeader();
+      if (typeof activeFilter !== "undefined" && activeFilter === "__wishlist") applyFilter();
     });
   }
   document.querySelectorAll(".vpc-wish").forEach(bindWish);
 
+  // --- product-image zoom lightbox (product page) ---
+  var pimg = document.querySelector(".product-image-container img");
+  if (pimg) {
+    pimg.classList.add("zoomable");
+    pimg.addEventListener("click", function () {
+      var ov = document.createElement("div");
+      ov.className = "vanta-lightbox";
+      ov.setAttribute("role", "dialog");
+      ov.setAttribute("aria-label", pimg.alt || "Product image");
+      var big = document.createElement("img");
+      big.src = pimg.src; big.alt = pimg.alt;
+      ov.appendChild(big);
+      document.body.appendChild(ov);
+      requestAnimationFrame(function () { ov.classList.add("open"); });
+      function close() { ov.classList.remove("open"); setTimeout(function () { ov.remove(); }, 250); }
+      ov.addEventListener("click", close);
+      document.addEventListener("keydown", function esc(e) {
+        if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
+      });
+    });
+  }
+
+  // --- home grid: filter / search / sort ---
   var grid = document.getElementById("product-grid");
-  if (!grid) return; // not on the home page
+  if (!grid) return;
 
   var cards = Array.prototype.slice.call(grid.querySelectorAll(".vanta-product-card"));
 
-  // --- "New" badge on freshly-added products (VNT* ids) ---
+  // "New" badge on freshly-added products (VNT* ids)
   cards.forEach(function (card) {
     if ((card.getAttribute("data-id") || "").indexOf("VNT") === 0) {
       var wrap = card.querySelector(".vpc-media-wrap");
       if (wrap && !wrap.querySelector(".vpc-badge-new")) {
         var b = document.createElement("span");
-        b.className = "vpc-badge-new";
-        b.textContent = "New";
+        b.className = "vpc-badge-new"; b.textContent = "New";
         wrap.appendChild(b);
       }
     }
@@ -78,45 +106,52 @@
   function applyFilter() {
     var shown = 0;
     cards.forEach(function (card) {
-      var catOk = activeFilter === "all" || card.getAttribute("data-category") === activeFilter;
       var nameOk = !term || (card.getAttribute("data-name") || "").toLowerCase().indexOf(term) !== -1;
+      var catOk;
+      if (activeFilter === "__wishlist") catOk = wish.has(card.getAttribute("data-id"));
+      else catOk = activeFilter === "all" || card.getAttribute("data-category") === activeFilter;
       var match = catOk && nameOk;
       card.hidden = !match;
       if (match) shown++;
     });
     if (countEl) countEl.textContent = shown;
-    if (emptyEl) emptyEl.hidden = shown !== 0;
+    if (emptyEl) {
+      emptyEl.hidden = shown !== 0;
+      emptyEl.textContent = activeFilter === "__wishlist"
+        ? "No saved items yet — tap the ♥ on any product."
+        : "No products match your search.";
+    }
   }
 
   function price(card) { return parseFloat(card.getAttribute("data-price")) || 0; }
-  function name(card) { return card.getAttribute("data-name") || ""; }
+  function nameOf(card) { return card.getAttribute("data-name") || ""; }
 
   function applySort() {
     var mode = sortSel ? sortSel.value : "featured";
     var arr = originalOrder.slice();
     if (mode === "price-asc") arr.sort(function (a, b) { return price(a) - price(b); });
     else if (mode === "price-desc") arr.sort(function (a, b) { return price(b) - price(a); });
-    else if (mode === "name") arr.sort(function (a, b) { return name(a).localeCompare(name(b)); });
+    else if (mode === "name") arr.sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)); });
     arr.forEach(function (card) { grid.appendChild(card); });
   }
 
+  function activate(pill) {
+    pills.forEach(function (p) { p.classList.remove("active"); p.setAttribute("aria-selected", "false"); });
+    pill.classList.add("active"); pill.setAttribute("aria-selected", "true");
+    activeFilter = pill.getAttribute("data-filter");
+    applyFilter();
+  }
+
   pills.forEach(function (pill) {
-    pill.addEventListener("click", function () {
-      pills.forEach(function (p) { p.classList.remove("active"); p.setAttribute("aria-selected", "false"); });
-      pill.classList.add("active");
-      pill.setAttribute("aria-selected", "true");
-      activeFilter = pill.getAttribute("data-filter");
-      applyFilter();
-    });
+    pill.addEventListener("click", function () { activate(pill); });
   });
-
   if (sortSel) sortSel.addEventListener("change", function () { applySort(); applyFilter(); });
+  if (searchEl) searchEl.addEventListener("input", function () { term = searchEl.value.trim().toLowerCase(); applyFilter(); });
 
-  if (searchEl) {
-    searchEl.addEventListener("input", function () {
-      term = searchEl.value.trim().toLowerCase();
-      applyFilter();
-    });
+  // deep-link: /#wishlist opens the Saved filter
+  if (location.hash === "#wishlist") {
+    var wp = document.querySelector('.cat-pill[data-filter="__wishlist"]');
+    if (wp) activate(wp);
   }
 
   applyFilter();

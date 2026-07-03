@@ -60,6 +60,11 @@
                     </a>
                     {{ end }}
 
+                    <a href="{{ $.baseUrl }}/#wishlist" class="cart-link" title="Wishlist" id="wish-header">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.8);"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                        <span class="cart-size-circle wish-size-circle" id="wish-count" hidden></span>
+                    </a>
+
                     <a href="{{ $.baseUrl }}/cart" class="cart-link" title="Shopping Cart">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.8);"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                         {{ if $.cart_size }}
