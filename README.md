@@ -8,8 +8,11 @@
 <p align="center">
   <a href="#-architecture"><img alt="Microservices" src="https://img.shields.io/badge/architecture-microservices-7c5cff"></a>
   <a href="#-tech-stack"><img alt="gRPC" src="https://img.shields.io/badge/RPC-gRPC-244c5a"></a>
-  <a href="/kustomize"><img alt="Kubernetes" src="https://img.shields.io/badge/deploy-Kubernetes-326ce5"></a>
-  <a href="/.github/workflows"><img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088ff"></a>
+  <a href="/kustomize"><img alt="Kubernetes" src="https://img.shields.io/badge/orchestration-Kubernetes%20(kubeadm)-326ce5"></a>
+  <a href="/terraform"><img alt="Terraform" src="https://img.shields.io/badge/IaC-Terraform-7b42bc"></a>
+  <a href="/argocd"><img alt="ArgoCD" src="https://img.shields.io/badge/GitOps-ArgoCD-ef7b4d"></a>
+  <a href="/monitoring"><img alt="Observability" src="https://img.shields.io/badge/observability-Prometheus%20%2B%20Grafana-e6522c"></a>
+  <a href="/.github/workflows"><img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-Actions%20%2B%20Jenkins-2088ff"></a>
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-green">
 </p>
 
@@ -44,9 +47,10 @@ pipeline that builds, tests, scans, and ships every service.
 - ⚙️ **CI/CD** — GitHub Actions: `go vet`, **race-detector tests** with a Postgres service
   container, multi-service Docker builds, Trivy vulnerability scan, and an honest deploy gate.
   The same pipeline is also provided as a **Jenkins declarative pipeline** ([`Jenkinsfile`](/Jenkinsfile)).
-- ☸️ **GitOps-ready deploy** — Kustomize base + `dev` overlay, an opt-in
-  `reviews-persistence` component (Postgres + PVC + secret), runnable on **local kind** or a
-  remote **AWS EC2** cluster via ArgoCD.
+- ☸️ **Self-managed platform on AWS** — the whole stack is reproducible from code:
+  **Terraform** provisions a VPC + 3 EC2 nodes, **Ansible** + `kubeadm` form the cluster,
+  **ArgoCD** delivers via pull-based GitOps, and **Prometheus/Grafana/Loki** provide
+  observability. See **[Platform & DevOps](#-platform--devops)** below.
 
 ## Screenshots
 
@@ -129,6 +133,75 @@ flowchart TD
 > Backing stores: **Redis** (cart) and an optional **PostgreSQL** (reviews, via the
 > `reviews-persistence` component).
 
+## 🛠 Platform & DevOps
+
+Beyond the app, this repo is a **complete, reproducible self-managed platform** — every layer
+is code. Nothing is clicked in a console: **Terraform** builds the infrastructure, **Ansible +
+kubeadm** form the cluster, **ArgoCD** delivers changes via pull-based GitOps, and
+**Prometheus/Grafana/Loki** close the loop with observability.
+
+```mermaid
+flowchart LR
+    dev([👩‍💻 git push]):::ext
+
+    subgraph ci["CI/CD · GitHub Actions + Jenkins"]
+      direction LR
+      test[test + vet] --> build[build image] --> scan[Trivy scan] --> ship[push image<br/>+ bump tag in Git]
+    end
+
+    reg[("Registry")]:::store
+    gitcfg[("Git · kustomize/overlays")]:::store
+
+    subgraph aws["AWS VPC 10.0.0.0/16 · ap-south-1 · Terraform"]
+      direction TB
+      subgraph master["Master · t3.small"]
+        api["kube-apiserver + etcd"]:::edge
+        argo["ArgoCD"]:::new
+        obs["Prometheus · Grafana<br/>Alertmanager · Loki"]:::edge
+      end
+      w1["Worker-1 · t3.micro<br/>(app pods)"]:::node
+      w2["Worker-2 · t3.micro<br/>(app pods)"]:::node
+    end
+
+    dev --> test
+    ship --> reg
+    ship --> gitcfg
+    argo -->|watch| gitcfg
+    argo -->|sync| w1
+    argo -->|sync| w2
+    reg -->|pull| w1
+    reg -->|pull| w2
+    obs -.->|scrape| w1
+    obs -.->|scrape| w2
+
+    classDef edge fill:#7c5cff,stroke:#fff,color:#fff;
+    classDef new  fill:#ef7b4d,stroke:#fff,color:#fff,stroke-width:2px;
+    classDef node fill:#326ce5,stroke:#fff,color:#fff;
+    classDef store fill:#244c5a,stroke:#fff,color:#fff;
+    classDef ext  fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+```
+
+**Provisioned once** — `terraform apply` (VPC, subnet, IGW, security groups, 3× EC2 with a
+`containerd`+`kubeadm` user-data bootstrap) → `ansible-playbook` (kubeadm `init`/`join` + Calico
+CNI) → `scripts/setup-argocd.sh` (install ArgoCD + register the Applications) → Helm-install the
+monitoring stack from `monitoring/`. **Then the day-to-day loop is automatic:** push → CI tests,
+builds, scans, and commits a new image tag → ArgoCD syncs the cluster → rolling update.
+
+| Layer | Tooling | Where |
+| --- | --- | --- |
+| **Infrastructure as Code** | Terraform — VPC, public subnet, IGW, security groups, EIP, TLS keypair, 3× EC2 (1 master + 2 workers) | [`/terraform`](/terraform) |
+| **Configuration** | Ansible — `kubeadm` cluster bootstrap + an audit playbook | [`/ansible`](/ansible) |
+| **Orchestration** | Self-managed **Kubernetes** (`kubeadm` + **Calico** CNI), Kustomize base + `dev`/`staging`/`prod` overlays | [`/scripts`](/scripts) · [`/kustomize`](/kustomize) |
+| **GitOps delivery** | **ArgoCD** — `staging` auto-syncs, `prod` is manual sync with prune + retry/backoff | [`/argocd`](/argocd) |
+| **CI/CD** | **GitHub Actions** + **Jenkins** — test, build, Trivy scan, plus `kustomize-build` and `terraform-validate` gates | [`/.github/workflows`](/.github/workflows) · [`Jenkinsfile`](/Jenkinsfile) |
+| **Observability** | **Prometheus + Grafana + Alertmanager** (with SRE alert rules) and **Loki** for logs | [`/monitoring`](/monitoring) |
+| **Security** | RBAC, Pod Security, **NetworkPolicies**, least-privilege security groups, non-root distroless images | [`/scripts`](/scripts) · [`/kustomize/components/network-policies`](/kustomize/components/network-policies) |
+| **Resilience / SRE** | **HPA**, PodDisruptionBudgets, plus **chaos-engineering** and **failover** lab scripts and health checks | [`/scripts`](/scripts) · [`/kustomize/components/pod-disruption-budgets`](/kustomize/components/pod-disruption-budgets) |
+
+> 💡 **Cost-aware & reproducible:** the AWS footprint runs at roughly **~$1.5/day** and tears
+> down cleanly with `terraform destroy` — state, kubeconfig, and tfvars are git-ignored, never
+> committed. The same app also runs **free on local kind** (next section).
+
 ## 🚀 Run it locally (kind)
 
 The quickest way to see the full store on your machine — a local
@@ -179,8 +252,10 @@ components:
 - **Comms:** gRPC + Protocol Buffers · gRPC health protocol
 - **Data:** Redis (cart) · PostgreSQL / pgx (reviews)
 - **Packaging:** Multi-stage Docker, `distroless:nonroot`
-- **Orchestration:** Kubernetes · Kustomize (base + overlays + components)
-- **CI/CD:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy) · ArgoCD (GitOps)
+- **Infrastructure:** Terraform (AWS VPC + EC2) · Ansible · self-managed Kubernetes (`kubeadm` + Calico)
+- **Orchestration:** Kubernetes · Kustomize (base + `dev`/`staging`/`prod` overlays + components) · Helm
+- **CI/CD & GitOps:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy) · ArgoCD
+- **Observability:** Prometheus · Grafana · Alertmanager · Loki
 - **Frontend extras:** schema.org JSON-LD · accessible review components
 
 ## 📚 Documentation

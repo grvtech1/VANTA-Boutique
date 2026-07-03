@@ -15,7 +15,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/grvtech1/online-boutique-devops.git'
+    repoURL: 'https://github.com/grvtech1/VANTA-Boutique.git'
     targetRevision: staging
     path: kustomize/overlays/staging
   destination:
