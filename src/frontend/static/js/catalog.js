@@ -148,11 +148,21 @@
   if (sortSel) sortSel.addEventListener("change", function () { applySort(); applyFilter(); });
   if (searchEl) searchEl.addEventListener("input", function () { term = searchEl.value.trim().toLowerCase(); applyFilter(); });
 
-  // deep-link: /#wishlist opens the Saved filter
-  if (location.hash === "#wishlist") {
+  // Saved view: opens on /#wishlist (initial load, on hash change, and when the
+  // header ♥ is clicked while already on the home page).
+  function openWishlist() {
     var wp = document.querySelector('.cat-pill[data-filter="__wishlist"]');
-    if (wp) activate(wp);
+    if (!wp) return;
+    activate(wp);
+    var sec = document.getElementById("products");
+    if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  window.addEventListener("hashchange", function () {
+    if (location.hash === "#wishlist") openWishlist();
+  });
+  var wishHeader = document.getElementById("wish-header");
+  if (wishHeader) wishHeader.addEventListener("click", function () { setTimeout(openWishlist, 30); });
+  if (location.hash === "#wishlist") openWishlist();
 
   applyFilter();
 })();
