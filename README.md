@@ -32,9 +32,12 @@ pipeline that builds, tests, scans, and ships every service.
 - 🆕 **Reviews microservice** (`reviewsservice`, Go/gRPC) — `GetReviews` + `AddReview`, with a
   pluggable **`Store` interface**: a bounded, concurrency-safe **in-memory** store by default,
   or a durable, shared **PostgreSQL** store (pgx/v5) for multi-replica deployments.
-- 🎨 **VANTA storefront** — reviews on the product page (★ ratings, write-a-review form),
-  rendered with accessibility (`aria-label`, semantic `<article>`/`<time>`) and **schema.org
-  JSON-LD** (`AggregateRating`/`Review`) for rich search snippets.
+- 🎨 **VANTA storefront** — a curated **25-product catalog across 6 categories** with a live
+  **category filter, search, and sort**, a **localStorage wishlist**, "New" badges, and a
+  unified set of **premium SVG product tiles** (per-category gradient art, zero external image
+  deps). Reviews on the product page (★ ratings, write-a-review form), rendered with
+  accessibility (`aria-label`, semantic `<article>`/`<time>`) and **schema.org JSON-LD**
+  (`AggregateRating`/`Review`) for rich search snippets.
 - 🛡️ **Production hardening** — graceful shutdown (`SIGTERM` → drain), gRPC message-size &
   keepalive limits, input validation/length caps, DB-connectivity-driven **gRPC health**, a
   `nonroot` distroless image, and a dedicated **NetworkPolicy**.
@@ -47,7 +50,7 @@ pipeline that builds, tests, scans, and ships every service.
 
 ## Screenshots
 
-| Landing — *Curated for the Bold* | Catalog — *Hot Products* |
+| Landing — *Curated for the Bold* | Catalog — *25 products · 6 categories · filter, search & sort* |
 | --- | --- |
 | ![VANTA landing hero](/docs/screenshots/hero-landing.png) | ![VANTA product catalog](/docs/screenshots/product-catalog.png) |
 

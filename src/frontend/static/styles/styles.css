@@ -816,3 +816,49 @@ footer .footer-built-by {
 .product-breadcrumb a:hover { color: var(--text-primary); }
 .product-breadcrumb .sep { opacity:.5; }
 .product-details .vpc-cat { display:inline-block; margin-bottom: 6px; }
+
+/* =============================================================================
+ * VANTA — Catalog features: search, "New" badge, wishlist heart (added)
+ * ============================================================================= */
+.cat-tools { display:flex; align-items:center; gap: var(--space-sm); }
+
+.cat-search { position:relative; display:flex; align-items:center; }
+.cat-search svg { position:absolute; left:14px; color: var(--text-muted); pointer-events:none; }
+.cat-search input {
+  font:inherit; font-size:.85rem; color: var(--text-primary);
+  background: var(--bg-input); border:1px solid var(--border-glass);
+  border-radius: var(--radius-full); padding:8px 16px 8px 38px; width: 200px;
+  transition: border-color var(--duration-fast) var(--ease-out), width var(--duration-normal) var(--ease-out);
+}
+.cat-search input::placeholder { color: var(--text-muted); }
+.cat-search input:focus { outline:none; border-color: var(--border-accent); width: 240px; }
+@media (max-width: 720px) { .cat-search input { width: 140px; } .cat-search input:focus { width: 160px; } }
+
+/* Media wrapper now hosts overlays (badge + wishlist) */
+.vpc-media-wrap { position:relative; }
+
+.vpc-badge-new {
+  position:absolute; top:12px; left:12px; z-index:2;
+  font-size:.66rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:#fff; background: var(--accent-gradient);
+  padding:4px 10px; border-radius: var(--radius-full);
+  box-shadow: var(--shadow-accent);
+}
+
+.vpc-wish {
+  position:absolute; top:10px; right:10px; z-index:2;
+  display:flex; align-items:center; justify-content:center;
+  width:36px; height:36px; padding:0; cursor:pointer;
+  color: rgba(255,255,255,.85);
+  background: rgba(10,10,15,.55); backdrop-filter: blur(6px);
+  border:1px solid rgba(255,255,255,.14); border-radius: var(--radius-full);
+  transition: transform var(--duration-fast) var(--ease-bounce),
+              background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+.vpc-wish svg { fill:none; stroke: currentColor; stroke-width:1.8; }
+.vpc-wish:hover { transform: scale(1.12); background: rgba(10,10,15,.75); color:#fff; }
+.vpc-wish.is-saved { color:#ff5c8a; }
+.vpc-wish.is-saved svg { fill:#ff5c8a; stroke:#ff5c8a; }
+.vpc-wish.is-saved { animation: wish-pop var(--duration-normal) var(--ease-bounce); }
+@keyframes wish-pop { 0%{transform:scale(1);} 45%{transform:scale(1.28);} 100%{transform:scale(1);} }

@@ -33,7 +33,7 @@
         <p class="section-sub">Twenty-five pieces across six categories — <span id="result-count">{{ len $.products }}</span> shown.</p>
       </div>
 
-      <!-- Category filter + sort bar -->
+      <!-- Category filter + search + sort bar -->
       <div class="cat-bar" role="tablist" aria-label="Product categories">
         <div class="cat-pills">
           <button class="cat-pill active" data-filter="all" role="tab" aria-selected="true">All</button>
@@ -44,14 +44,20 @@
           <button class="cat-pill" data-filter="beauty" role="tab">Beauty</button>
           <button class="cat-pill" data-filter="tech" role="tab">Tech</button>
         </div>
-        <div class="cat-sort">
-          <label for="sort" class="sr-only">Sort products</label>
-          <select id="sort" aria-label="Sort products">
-            <option value="featured">Featured</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="name">Name: A–Z</option>
-          </select>
+        <div class="cat-tools">
+          <div class="cat-search">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="search" id="search" placeholder="Search products…" aria-label="Search products" autocomplete="off">
+          </div>
+          <div class="cat-sort">
+            <label for="sort" class="sr-only">Sort products</label>
+            <select id="sort" aria-label="Sort products">
+              <option value="featured">Featured</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="name">Name: A–Z</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -61,11 +67,17 @@
         <article class="vanta-product-card"
                  data-category="{{ index .Item.Categories 0 }}"
                  data-price="{{ .Price.Units }}"
-                 data-name="{{ .Item.Name }}">
-          <a class="vpc-media" href="{{ $.baseUrl }}/product/{{ .Item.Id }}" aria-label="{{ .Item.Name }}">
-            <img loading="lazy" src="{{ $.baseUrl }}{{ .Item.Picture }}" alt="{{ .Item.Name }}">
-            <span class="vpc-view">View Product</span>
-          </a>
+                 data-name="{{ .Item.Name }}"
+                 data-id="{{ .Item.Id }}">
+          <div class="vpc-media-wrap">
+            <a class="vpc-media" href="{{ $.baseUrl }}/product/{{ .Item.Id }}" aria-label="{{ .Item.Name }}">
+              <img loading="lazy" src="{{ $.baseUrl }}{{ .Item.Picture }}" alt="{{ .Item.Name }}">
+              <span class="vpc-view">View Product</span>
+            </a>
+            <button class="vpc-wish" type="button" data-id="{{ .Item.Id }}" aria-label="Save {{ .Item.Name }} to wishlist" aria-pressed="false">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 21s-7.55-4.6-10-9.17C.3 8.36 2.02 5 5.3 5c2.02 0 3.35 1.23 4.7 3.02C11.35 6.23 12.68 5 14.7 5 17.98 5 19.7 8.36 22 11.83 19.55 16.4 12 21 12 21z"/></svg>
+            </button>
+          </div>
           <div class="vpc-body">
             <span class="vpc-cat" data-cat="{{ index .Item.Categories 0 }}"></span>
             <a class="vpc-name" href="{{ $.baseUrl }}/product/{{ .Item.Id }}">{{ .Item.Name }}</a>
@@ -75,7 +87,7 @@
         {{ end }}
       </div>
 
-      <p class="grid-empty" id="grid-empty" hidden>No products in this category yet.</p>
+      <p class="grid-empty" id="grid-empty" hidden>No products match your search.</p>
 
       {{ if $.ad }}
         {{ template "text_ad" . }}
