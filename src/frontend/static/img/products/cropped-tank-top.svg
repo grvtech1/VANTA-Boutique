@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Cropped Tank Top">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1b22"/><stop offset="1" stop-color="#101014"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="34%" r="60%">
+      <stop offset="0" stop-color="#7c5cff" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#7c5cff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#7c5cff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect width="600" height="600" fill="url(#glow)"/>
+  <rect x="28" y="28" width="544" height="544" rx="26" fill="none" stroke="#7c5cff" stroke-opacity="0.18" stroke-width="1.5"/>
+  <text x="52" y="66" fill="#ffffff" fill-opacity="0.22" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="5">VANTA</text>
+  <svg x="180" y="150" width="240" height="240" viewBox="0 0 100 100">
+    <g fill="none" stroke="#7c5cff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M37 30v6M63 30v6"/><path d="M33 40h34v42h-34z"/><path d="M41 40q9 8 18 0"/></g>
+  </svg>
+  <line x1="264" y1="446" x2="336" y2="446" stroke="#7c5cff" stroke-opacity="0.55" stroke-width="2"/>
+  <text x="300" y="490" text-anchor="middle" fill="#f2f0f7" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="27" font-weight="600" letter-spacing="0.4">Cropped Tank Top</text>
+  <text x="300" y="520" text-anchor="middle" fill="#7c5cff" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="14" font-weight="600" letter-spacing="3">APPAREL</text>
+</svg>

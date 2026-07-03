@@ -28,21 +28,54 @@
       </div>
       {{ end }}
 
-      <h2 class="section-heading">Hot Products</h2>
+      <div class="section-head">
+        <h2 class="section-heading">Shop the Collection</h2>
+        <p class="section-sub">Twenty-five pieces across six categories — <span id="result-count">{{ len $.products }}</span> shown.</p>
+      </div>
 
-      <div class="hot-products-row">
-        {{ range $.products }}
-        <div class="hot-product-card">
-          <a href="{{ $.baseUrl }}/product/{{.Item.Id}}">
-            <img loading="lazy" src="{{ $.baseUrl }}{{.Item.Picture}}" alt="{{.Item.Name}}">
-          </a>
-          <div>
-            <div class="hot-product-card-name">{{ .Item.Name }}</div>
-            <div class="hot-product-card-price">{{ renderMoney .Price }}</div>
-          </div>
+      <!-- Category filter + sort bar -->
+      <div class="cat-bar" role="tablist" aria-label="Product categories">
+        <div class="cat-pills">
+          <button class="cat-pill active" data-filter="all" role="tab" aria-selected="true">All</button>
+          <button class="cat-pill" data-filter="accessories" role="tab">Accessories</button>
+          <button class="cat-pill" data-filter="apparel" role="tab">Apparel</button>
+          <button class="cat-pill" data-filter="footwear" role="tab">Footwear</button>
+          <button class="cat-pill" data-filter="home-kitchen" role="tab">Home &amp; Kitchen</button>
+          <button class="cat-pill" data-filter="beauty" role="tab">Beauty</button>
+          <button class="cat-pill" data-filter="tech" role="tab">Tech</button>
         </div>
+        <div class="cat-sort">
+          <label for="sort" class="sr-only">Sort products</label>
+          <select id="sort" aria-label="Sort products">
+            <option value="featured">Featured</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="name">Name: A–Z</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Product grid -->
+      <div class="product-grid" id="product-grid">
+        {{ range $.products }}
+        <article class="vanta-product-card"
+                 data-category="{{ index .Item.Categories 0 }}"
+                 data-price="{{ .Price.Units }}"
+                 data-name="{{ .Item.Name }}">
+          <a class="vpc-media" href="{{ $.baseUrl }}/product/{{ .Item.Id }}" aria-label="{{ .Item.Name }}">
+            <img loading="lazy" src="{{ $.baseUrl }}{{ .Item.Picture }}" alt="{{ .Item.Name }}">
+            <span class="vpc-view">View Product</span>
+          </a>
+          <div class="vpc-body">
+            <span class="vpc-cat" data-cat="{{ index .Item.Categories 0 }}"></span>
+            <a class="vpc-name" href="{{ $.baseUrl }}/product/{{ .Item.Id }}">{{ .Item.Name }}</a>
+            <div class="vpc-price">{{ renderMoney .Price }}</div>
+          </div>
+        </article>
         {{ end }}
       </div>
+
+      <p class="grid-empty" id="grid-empty" hidden>No products in this category yet.</p>
 
       {{ if $.ad }}
         {{ template "text_ad" . }}
@@ -55,5 +88,6 @@
 {{ template "footer" . }}
 
 <script src="{{ $.baseUrl }}/static/js/animations.js"></script>
+<script src="{{ $.baseUrl }}/static/js/catalog.js"></script>
 
 {{ end }}

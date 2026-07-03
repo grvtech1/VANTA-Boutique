@@ -721,3 +721,98 @@ footer .footer-built-by {
   .product-page .row { grid-template-columns: 1fr; }
   .recommendations-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =============================================================================
+ * VANTA — Catalog: category filter bar + premium product cards (added)
+ * ============================================================================= */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+
+.section-head { text-align:center; margin: var(--space-2xl) 0 var(--space-lg); }
+.section-sub { color: var(--text-secondary); font-size:.95rem; margin-top: var(--space-xs); }
+.section-sub #result-count { color: var(--text-primary); font-weight:600; }
+
+.cat-bar {
+  position:sticky; top: var(--navbar-height); z-index:20;
+  display:flex; flex-wrap:wrap; gap: var(--space-md);
+  align-items:center; justify-content:space-between;
+  padding: var(--space-md) 0; margin-bottom: var(--space-xl);
+  backdrop-filter: blur(12px);
+  background: linear-gradient(to bottom, var(--bg-primary) 55%, rgba(10,10,15,0));
+}
+.cat-pills { display:flex; flex-wrap:wrap; gap: var(--space-sm); }
+.cat-pill {
+  font:inherit; font-size:.85rem; font-weight:500; letter-spacing:.01em;
+  color: var(--text-secondary); background: var(--bg-glass);
+  border:1px solid var(--border-glass); border-radius: var(--radius-full);
+  padding:8px 16px; cursor:pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.cat-pill:hover { color: var(--text-primary); border-color: var(--border-hover); background: var(--bg-glass-strong); }
+.cat-pill.active { color:#fff; background: var(--accent-gradient); border-color:transparent; box-shadow: var(--shadow-accent); }
+
+.cat-sort select {
+  font:inherit; font-size:.85rem; color: var(--text-primary);
+  background: var(--bg-input); border:1px solid var(--border-glass);
+  border-radius: var(--radius-full); padding:8px 34px 8px 16px; cursor:pointer;
+  appearance:none; -webkit-appearance:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.55' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position: right 12px center;
+}
+.cat-sort select:hover { border-color: var(--border-hover); }
+
+.product-grid {
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-xl);
+}
+@media (max-width: 640px) { .product-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-md); } }
+
+.vanta-product-card {
+  display:flex; flex-direction:column;
+  background: var(--bg-card); border:1px solid var(--border-glass);
+  border-radius: var(--radius-lg); overflow:hidden;
+  transition: transform var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+}
+.vanta-product-card[hidden] { display:none; }
+.vanta-product-card:hover { transform: translateY(-6px); border-color: var(--border-hover); box-shadow: var(--shadow-lg); }
+
+.vpc-media { position:relative; display:block; aspect-ratio:1/1; overflow:hidden; background: var(--bg-secondary); }
+.vpc-media img { width:100%; height:100%; object-fit:cover; display:block; transition: transform var(--duration-slow) var(--ease-out); }
+.vanta-product-card:hover .vpc-media img { transform: scale(1.05); }
+.vpc-view {
+  position:absolute; left:50%; bottom:14px; transform: translate(-50%, 12px);
+  opacity:0; pointer-events:none; white-space:nowrap;
+  font-size:.78rem; font-weight:600; letter-spacing:.03em; color:#fff;
+  background: rgba(10,10,15,.72); backdrop-filter: blur(6px);
+  border:1px solid rgba(255,255,255,.16); padding:8px 16px; border-radius: var(--radius-full);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+.vanta-product-card:hover .vpc-view { opacity:1; transform: translate(-50%, 0); }
+
+.vpc-body { padding: var(--space-md) var(--space-md) var(--space-lg); display:flex; flex-direction:column; gap:6px; }
+.vpc-cat { font-size:.68rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color: var(--text-muted); }
+.vpc-name { font-size:1rem; font-weight:600; color: var(--text-primary); text-decoration:none; line-height:1.3; }
+.vpc-name:hover { color: var(--accent-light); }
+.vpc-price { font-size:1.05rem; font-weight:700; color: var(--text-primary); margin-top:2px; }
+
+/* Per-category accent (matches the SVG tile glow) */
+.vanta-product-card[data-category="accessories"]  { --c:#d4af37; }
+.vanta-product-card[data-category="apparel"]       { --c:#7c5cff; }
+.vanta-product-card[data-category="footwear"]      { --c:#2dd4bf; }
+.vanta-product-card[data-category="home-kitchen"]  { --c:#f59e0b; }
+.vanta-product-card[data-category="beauty"]        { --c:#ec4899; }
+.vanta-product-card[data-category="tech"]          { --c:#3b82f6; }
+.vanta-product-card .vpc-cat { color: var(--c, var(--text-muted)); }
+.vanta-product-card:hover {
+  box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--c, #6c5ce7) 32%, transparent);
+}
+
+.grid-empty { text-align:center; color: var(--text-secondary); padding: var(--space-3xl) 0; }
+
+/* Product page: breadcrumb + category chip */
+.product-breadcrumb { display:flex; gap:8px; align-items:center; font-size:.8rem; color: var(--text-muted); margin-bottom: var(--space-lg); }
+.product-breadcrumb a { color: var(--text-secondary); text-decoration:none; }
+.product-breadcrumb a:hover { color: var(--text-primary); }
+.product-breadcrumb .sep { opacity:.5; }
+.product-details .vpc-cat { display:inline-block; margin-bottom: 6px; }

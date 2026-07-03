@@ -2,111 +2,353 @@
     "products": [
         {
             "id": "OLJCESPC7Z",
-            "name": "Sunglasses",
-            "description": "Add a modern touch to your outfits with these sleek aviator sunglasses.",
-            "picture": "/static/img/products/sunglasses.jpg",
+            "name": "Aviator Sunglasses",
+            "description": "A modern touch for any outfit — sleek aviator sunglasses with UV-grade lenses.",
+            "picture": "/static/img/products/aviator-sunglasses.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 19,
                 "nanos": 990000000
             },
-            "categories": ["accessories"]
+            "categories": [
+                "accessories"
+            ]
         },
         {
             "id": "66VCHSJNUP",
-            "name": "Tank Top",
-            "description": "Perfectly cropped cotton tank, with a scooped neckline.",
-            "picture": "/static/img/products/tank-top.jpg",
+            "name": "Cropped Tank Top",
+            "description": "Perfectly cropped combed-cotton tank with a scooped neckline.",
+            "picture": "/static/img/products/cropped-tank-top.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
                 "nanos": 990000000
             },
-            "categories": ["clothing", "tops"]
+            "categories": [
+                "apparel"
+            ]
         },
         {
             "id": "1YMWWN1N4O",
-            "name": "Watch",
-            "description": "This gold-tone stainless steel watch will work with most of your outfits.",
-            "picture": "/static/img/products/watch.jpg",
+            "name": "Gold-Tone Watch",
+            "description": "A gold-tone stainless steel watch that pairs with everything you own.",
+            "picture": "/static/img/products/gold-tone-watch.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 109,
                 "nanos": 990000000
             },
-            "categories": ["accessories"]
+            "categories": [
+                "accessories"
+            ]
         },
         {
             "id": "L9ECAV7KIM",
-            "name": "Loafers",
-            "description": "A neat addition to your summer wardrobe.",
-            "picture": "/static/img/products/loafers.jpg",
+            "name": "Suede Loafers",
+            "description": "Hand-finished suede loafers — a neat addition to your warm-weather wardrobe.",
+            "picture": "/static/img/products/suede-loafers.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 89,
                 "nanos": 990000000
             },
-            "categories": ["footwear"]
+            "categories": [
+                "footwear"
+            ]
         },
         {
             "id": "2ZYFJ3GM2N",
-            "name": "Hairdryer",
-            "description": "This lightweight hairdryer has 3 heat and speed settings. It's perfect for travel.",
-            "picture": "/static/img/products/hairdryer.jpg",
+            "name": "Travel Hairdryer",
+            "description": "Lightweight dryer with 3 heat and speed settings — folds flat for travel.",
+            "picture": "/static/img/products/travel-hairdryer.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 24,
                 "nanos": 990000000
             },
-            "categories": ["hair", "beauty"]
+            "categories": [
+                "beauty"
+            ]
         },
         {
             "id": "0PUK6V6EV0",
             "name": "Candle Holder",
-            "description": "This small but intricate candle holder is an excellent gift.",
-            "picture": "/static/img/products/candle-holder.jpg",
+            "description": "A small but intricately cast candle holder — an excellent gift.",
+            "picture": "/static/img/products/candle-holder.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
                 "nanos": 990000000
             },
-            "categories": ["decor", "home"]
+            "categories": [
+                "home-kitchen"
+            ]
         },
         {
             "id": "LS4PSXUNUM",
             "name": "Salt & Pepper Shakers",
-            "description": "Add some flavor to your kitchen.",
-            "picture": "/static/img/products/salt-and-pepper-shakers.jpg",
+            "description": "A weighted ceramic duo to add some flavor to your table.",
+            "picture": "/static/img/products/salt-pepper-shakers.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 18,
                 "nanos": 490000000
             },
-            "categories": ["kitchen"]
+            "categories": [
+                "home-kitchen"
+            ]
         },
         {
             "id": "9SIQT8TOJO",
             "name": "Bamboo Glass Jar",
-            "description": "This bamboo glass jar can hold 57 oz (1.7 l) and is perfect for any kitchen.",
-            "picture": "/static/img/products/bamboo-glass-jar.jpg",
+            "description": "A 1.7 L bamboo-lidded glass jar — airtight and kitchen-ready.",
+            "picture": "/static/img/products/bamboo-glass-jar.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 5,
                 "nanos": 490000000
             },
-            "categories": ["kitchen"]
+            "categories": [
+                "home-kitchen"
+            ]
         },
         {
             "id": "6E92ZMYYFZ",
-            "name": "Mug",
-            "description": "A simple mug with a mustard interior.",
-            "picture": "/static/img/products/mug.jpg",
+            "name": "Ceramic Mug",
+            "description": "A simple stoneware mug with a warm mustard glaze inside.",
+            "picture": "/static/img/products/ceramic-mug.svg",
             "priceUsd": {
                 "currencyCode": "USD",
                 "units": 8,
                 "nanos": 990000000
             },
-            "categories": ["kitchen"]
+            "categories": [
+                "home-kitchen"
+            ]
+        },
+        {
+            "id": "VNTBELT001",
+            "name": "Leather Belt",
+            "description": "Full-grain leather belt with a brushed matte buckle.",
+            "picture": "/static/img/products/leather-belt.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 39,
+                "nanos": 990000000
+            },
+            "categories": [
+                "accessories"
+            ]
+        },
+        {
+            "id": "VNTSCRF002",
+            "name": "Silk Scarf",
+            "description": "A lightweight mulberry-silk scarf with hand-rolled edges.",
+            "picture": "/static/img/products/silk-scarf.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 29,
+                "nanos": 990000000
+            },
+            "categories": [
+                "accessories"
+            ]
+        },
+        {
+            "id": "VNTBKPK003",
+            "name": "Leather Backpack",
+            "description": "A minimalist full-grain leather backpack with a padded 15\" laptop sleeve.",
+            "picture": "/static/img/products/leather-backpack.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 129,
+                "nanos": 990000000
+            },
+            "categories": [
+                "accessories"
+            ]
+        },
+        {
+            "id": "VNTSHRT004",
+            "name": "Linen Shirt",
+            "description": "Breathable European linen shirt with a relaxed, tailored fit.",
+            "picture": "/static/img/products/linen-shirt.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 49,
+                "nanos": 990000000
+            },
+            "categories": [
+                "apparel"
+            ]
+        },
+        {
+            "id": "VNTJCKT005",
+            "name": "Denim Jacket",
+            "description": "A structured mid-wash denim jacket built to break in beautifully.",
+            "picture": "/static/img/products/denim-jacket.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 79,
+                "nanos": 990000000
+            },
+            "categories": [
+                "apparel"
+            ]
+        },
+        {
+            "id": "VNTSWTR006",
+            "name": "Merino Sweater",
+            "description": "Fine-gauge merino wool sweater — soft, warm, and never itchy.",
+            "picture": "/static/img/products/merino-sweater.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 59,
+                "nanos": 990000000
+            },
+            "categories": [
+                "apparel"
+            ]
+        },
+        {
+            "id": "VNTSNKR007",
+            "name": "Leather Sneakers",
+            "description": "Clean minimalist leather sneakers on a cushioned cup sole.",
+            "picture": "/static/img/products/leather-sneakers.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 99,
+                "nanos": 990000000
+            },
+            "categories": [
+                "footwear"
+            ]
+        },
+        {
+            "id": "VNTBOOT008",
+            "name": "Chelsea Boots",
+            "description": "Timeless suede Chelsea boots with elastic side panels.",
+            "picture": "/static/img/products/chelsea-boots.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 139,
+                "nanos": 990000000
+            },
+            "categories": [
+                "footwear"
+            ]
+        },
+        {
+            "id": "VNTVASE009",
+            "name": "Ceramic Vase",
+            "description": "A hand-thrown matte ceramic vase with a sculptural silhouette.",
+            "picture": "/static/img/products/ceramic-vase.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 34,
+                "nanos": 990000000
+            },
+            "categories": [
+                "home-kitchen"
+            ]
+        },
+        {
+            "id": "VNTBORD010",
+            "name": "Serving Board",
+            "description": "An acacia serving board with a rounded handle and hanging hole.",
+            "picture": "/static/img/products/serving-board.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 27,
+                "nanos": 990000000
+            },
+            "categories": [
+                "home-kitchen"
+            ]
+        },
+        {
+            "id": "VNTROLL011",
+            "name": "Facial Roller",
+            "description": "A dual-ended stone facial roller to de-puff and refresh.",
+            "picture": "/static/img/products/facial-roller.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 22,
+                "nanos": 990000000
+            },
+            "categories": [
+                "beauty"
+            ]
+        },
+        {
+            "id": "VNTCNDL012",
+            "name": "Scented Candle",
+            "description": "A hand-poured soy candle with notes of cedar, amber, and smoke.",
+            "picture": "/static/img/products/scented-candle.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 26,
+                "nanos": 990000000
+            },
+            "categories": [
+                "beauty"
+            ]
+        },
+        {
+            "id": "VNTVRHD013",
+            "name": "VR Headset",
+            "description": "An immersive standalone VR headset with inside-out tracking.",
+            "picture": "/static/img/products/vr-headset.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 199,
+                "nanos": 990000000
+            },
+            "categories": [
+                "tech"
+            ]
+        },
+        {
+            "id": "VNTERBD014",
+            "name": "Wireless Earbuds",
+            "description": "Noise-cancelling wireless earbuds with a 24-hour charging case.",
+            "picture": "/static/img/products/wireless-earbuds.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 89,
+                "nanos": 990000000
+            },
+            "categories": [
+                "tech"
+            ]
+        },
+        {
+            "id": "VNTSPKR015",
+            "name": "Smart Speaker",
+            "description": "A room-filling smart speaker with a warm, balanced signature.",
+            "picture": "/static/img/products/smart-speaker.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 69,
+                "nanos": 990000000
+            },
+            "categories": [
+                "tech"
+            ]
+        },
+        {
+            "id": "VNTLAMP016",
+            "name": "Desk Lamp",
+            "description": "An adjustable aluminium desk lamp with stepless warm-to-cool dimming.",
+            "picture": "/static/img/products/desk-lamp.svg",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 44,
+                "nanos": 990000000
+            },
+            "categories": [
+                "tech"
+            ]
         }
     ]
 }

@@ -10,6 +10,15 @@
 <main>
   <section class="product-page">
     <div class="vanta-container">
+
+      <nav class="product-breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ $.baseUrl }}/">Home</a>
+        <span class="sep">/</span>
+        <a href="{{ $.baseUrl }}/#products">Shop</a>
+        <span class="sep">/</span>
+        <span>{{ $.product.Item.Name }}</span>
+      </nav>
+
       <div class="row">
 
         <!-- Product Image -->
@@ -19,6 +28,7 @@
 
         <!-- Product Details -->
         <div class="product-details">
+          <span class="vpc-cat" data-cat="{{ index $.product.Item.Categories 0 }}"></span>
           <h2>{{ $.product.Item.Name }}</h2>
           <div class="product-price">{{ renderMoney $.product.Price }}</div>
           <p class="product-description">{{ $.product.Item.Description }}</p>
@@ -136,5 +146,6 @@
 {{ template "footer" . }}
 
 <script src="{{ $.baseUrl }}/static/js/animations.js"></script>
+<script src="{{ $.baseUrl }}/static/js/catalog.js"></script>
 
 {{ end }}
