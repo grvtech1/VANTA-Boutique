@@ -46,9 +46,11 @@ spec:
           ports:
           - containerPort: 5050
           readinessProbe:
+            timeoutSeconds: 5
             grpc:
               port: 5050
           livenessProbe:
+            timeoutSeconds: 5
             grpc:
               port: 5050
           env:

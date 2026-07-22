@@ -53,9 +53,11 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          timeoutSeconds: 5
           grpc:
             port: 7000
         livenessProbe:
+          timeoutSeconds: 5
           grpc:
             port: 7000
         resources:
