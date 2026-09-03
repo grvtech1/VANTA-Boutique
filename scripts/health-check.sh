@@ -21,7 +21,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-NAMESPACE="${NAMESPACE:-default}"
+NAMESPACE="${NAMESPACE:-boutique}"
 TARGET_SERVICE="${1:-all}"
 FAILURES=0
 TOTAL=0

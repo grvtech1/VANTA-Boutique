@@ -1,0 +1,10 @@
+# CI render test: base + every hardening component that prod composes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+components:
+  - ../../components/network-policies
+  - ../../components/pod-disruption-budgets
+  - ../../components/reviews-persistence
+  - ../../components/ingress

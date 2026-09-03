@@ -2,9 +2,7 @@
 .eclipse.buildship.core.prefs
 .gradle/
 .idea/
-.kubernetes-manifests-*/
 .project
-.skaffold-*.yaml
 # Terraform & Kubernetes local configs
 .terraform/
 **/.terraform/
@@ -23,6 +21,12 @@ tf_outputs.json
 *.swp
 *.tfstate*
 *.tfvars
+# never commit credentials or private keys
+*.pem
+terraform/k8s-key.pem
+backup/velero-credentials
+coverage.out
+*.cdx.json
 *~
 bin/
 build/
@@ -30,5 +34,4 @@ Dockerfile.pip
 node_modules/
 obj/
 pkg/
-release/wi-kubernetes-manifests.yaml
 vendor/

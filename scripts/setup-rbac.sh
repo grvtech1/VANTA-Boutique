@@ -20,8 +20,8 @@
 #   to someone who only needs to deploy pods in their namespace.
 # =============================================================================
 
-export KUBECONFIG=/home/gaurav/online-boutique/kubeconfig-aws
-K=/home/gaurav/.local/bin/kubectl
+export KUBECONFIG="${KUBECONFIG:-$PWD/kubeconfig-aws}"
+K="${KUBECTL:-kubectl}"
 
 echo "=== PHASE 6: RBAC (Role-Based Access Control) ==="
 echo ""

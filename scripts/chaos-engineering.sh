@@ -19,8 +19,8 @@
 #   3. Service Test  → Is the app still accessible during chaos?
 # =============================================================================
 
-export KUBECONFIG=/home/gaurav/online-boutique/kubeconfig-aws
-K=/home/gaurav/.local/bin/kubectl
+export KUBECONFIG="${KUBECONFIG:-$PWD/kubeconfig-aws}"
+K="${KUBECTL:-kubectl}"
 
 echo "=== PHASE 7: CHAOS ENGINEERING ==="
 echo ""

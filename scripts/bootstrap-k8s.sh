@@ -6,13 +6,13 @@
 # =============================================================================
 
 set -e
-export PATH=/home/gaurav/.local/bin:/usr/bin:/bin:$PATH
+export PATH="$HOME/.local/bin:$PATH"
 
-MASTER_IP="15.206.221.59"
-MASTER_PRIVATE_IP="10.0.1.10"
-WORKER1_IP="13.206.95.146"
-WORKER2_IP="13.206.145.240"
-KEY="$HOME/online-boutique/terraform/k8s-key.pem"
+MASTER_IP="${MASTER_IP:?set MASTER_IP, e.g. export MASTER_IP=$(terraform -chdir=terraform output -raw master_elastic_ip)}"
+MASTER_PRIVATE_IP="${MASTER_PRIVATE_IP:-10.0.1.10}"
+WORKER1_IP="${WORKER1_IP:?set WORKER1_IP from terraform output worker_public_ips}"
+WORKER2_IP="${WORKER2_IP:?set WORKER2_IP from terraform output worker_public_ips}"
+KEY="${SSH_KEY:-$PWD/terraform/k8s-key.pem}"
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=30 -i $KEY"
 
 echo "╔══════════════════════════════════════════════════╗"

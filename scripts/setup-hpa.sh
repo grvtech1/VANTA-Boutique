@@ -12,8 +12,8 @@
 #   In production (EKS/GKE), certificates are properly signed so this isn't needed.
 # =============================================================================
 
-export KUBECONFIG=/home/gaurav/online-boutique/kubeconfig-aws
-K=/home/gaurav/.local/bin/kubectl
+export KUBECONFIG="${KUBECONFIG:-$PWD/kubeconfig-aws}"
+K="${KUBECTL:-kubectl}"
 
 echo "=== PHASE 4: HPA (Horizontal Pod Autoscaler) ==="
 echo ""

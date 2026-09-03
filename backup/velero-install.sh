@@ -1,47 +1,28 @@
-#!/bin/bash
-# =============================================================================
-# Velero — Kubernetes Backup & Disaster Recovery
-# =============================================================================
-# WHY: If the cluster crashes, Velero restores all K8s objects (deployments,
-#      services, secrets, PVCs) from S3 backups.
+#!/usr/bin/env bash
+# Velero — backup & restore of the boutique namespace to S3 (objects + PV snapshots).
+# Prereqs: velero CLI, an S3 bucket, and backup/velero-credentials (git-ignored; see .example).
 #
-# PREREQUISITES:
-#   1. Install velero CLI: https://velero.io/docs/v1.14/basic-install/
-#   2. Create S3 bucket:
-#      aws s3api create-bucket --bucket gaurav-velero-backups \
-#        --region ap-south-1 \
-#        --create-bucket-configuration LocationConstraint=ap-south-1
-#   3. Create IAM credentials file at backup/velero-credentials
-# =============================================================================
+#   VELERO_BUCKET=my-bucket AWS_REGION=ap-south-1 backup/velero-install.sh
 set -euo pipefail
+BUCKET="${VELERO_BUCKET:?set VELERO_BUCKET}"
+REGION="${AWS_REGION:-ap-south-1}"
+NS="${NAMESPACE:-boutique}"
+CREDS="${VELERO_CREDENTIALS:-$(dirname "$0")/velero-credentials}"
+[ -f "$CREDS" ] || { echo "missing $CREDS — copy velero-credentials.example and fill it in (never commit it)" >&2; exit 1; }
 
-BUCKET="gaurav-velero-backups"
-REGION="ap-south-1"
-KUBECONFIG="/home/gaurav/online-boutique/kubeconfig-aws"
-
-echo "=== Installing Velero ==="
+echo "== install velero (S3: $BUCKET, $REGION) =="
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.10.0 \
   --bucket "$BUCKET" \
   --backup-location-config region="$REGION" \
   --snapshot-location-config region="$REGION" \
-  --secret-file /home/gaurav/online-boutique/backup/velero-credentials \
-  --kubeconfig "$KUBECONFIG"
+  --secret-file "$CREDS"
 
-echo ""
-echo "=== Creating Scheduled Backup (every 6 hours, retain 48h) ==="
-velero schedule create boutique-backup \
-  --schedule="0 */6 * * *" \
-  --include-namespaces boutique \
-  --ttl 48h \
-  --kubeconfig "$KUBECONFIG"
+echo; echo "== schedule: every 6h, keep 48h, namespace $NS =="
+velero schedule create boutique-backup --schedule="0 */6 * * *" --include-namespaces "$NS" --ttl 48h || true
 
-echo ""
-echo "=== Creating One-Time Backup Now ==="
-velero backup create boutique-manual-$(date +%Y%m%d-%H%M) \
-  --include-namespaces boutique \
-  --kubeconfig "$KUBECONFIG"
-
-echo ""
-echo "Done! Check backups: velero backup get --kubeconfig $KUBECONFIG"
+echo; echo "== one-off backup now =="
+velero backup create "boutique-manual-$(date +%Y%m%d-%H%M)" --include-namespaces "$NS"
+echo
+echo "restore drill:  velero restore create --from-backup <name>   (see docs/RUNBOOKS.md)"

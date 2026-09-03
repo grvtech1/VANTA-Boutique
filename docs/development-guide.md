@@ -1,131 +1,68 @@
-# Development Guide 
-
-This doc explains how to build and run the Online Boutique source code locally using the `skaffold` command-line tool.  
+# Development guide (local, kind)
 
 ## Prerequisites
 
-- [Docker for Desktop](https://www.docker.com/products/docker-desktop)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) (can be installed via `gcloud components install kubectl` for Option 1 - GKE)
-- [skaffold **2.0.2+**](https://skaffold.dev/docs/install/) (latest version recommended), a tool that builds and deploys Docker images in bulk. 
-- Clone the repository.
-    ```sh
-    git clone https://github.com/GoogleCloudPlatform/microservices-demo
-    cd microservices-demo/
-    ```
-- A Google Cloud project with Google Container Registry enabled. (for Option 1 - GKE)
-- [Minikube](https://minikube.sigs.k8s.io/docs/start/) (optional for Option 2 - Local Cluster)
-- [Kind](https://kind.sigs.k8s.io/) (optional for Option 2 - Local Cluster)
+- Docker, [kind](https://kind.sigs.k8s.io/), `kubectl`, `helm` (optional: `make` on Linux/macOS/WSL)
+- Go 1.25+ for the Go services, .NET 8 for cartservice, Node 20 / Python 3.12 for the others
 
-## Option 1: Google Kubernetes Engine (GKE)
+## 1. Cluster + app
 
-> 💡 Recommended if you're using Google Cloud and want to try it on
-> a realistic cluster. **Note**: If your cluster has Workload Identity enabled, 
-> [see these instructions](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#enable)
+```sh
+kind create cluster --config kind-local.yaml          # or: make kind-up
+kubectl apply -k kustomize/overlays/dev               # or: make deploy
+kubectl wait -n boutique --for=condition=ready pod --all --timeout=300s
+# http://localhost:8888   (NodePort)   or   kubectl port-forward -n boutique svc/frontend 8088:80
+```
 
-1.  Create a Google Kubernetes Engine cluster and make sure `kubectl` is pointing
-    to the cluster.
+Optional nginx Ingress (what prod uses):
 
-    ```sh
-    gcloud services enable container.googleapis.com
-    ```
+```sh
+scripts/install-ingress-nginx.sh --provider kind      # or: make ingress
+kubectl apply -k kustomize/overlays/kind-ingress
+echo "127.0.0.1 vanta.local" | sudo tee -a /etc/hosts   # → http://vanta.local
+```
 
-    ```sh
-    gcloud container clusters create-auto demo --region=us-central1
-    ```
+## 2. Change a service, see it in the cluster
 
-    ```
-    kubectl get nodes
-    ```
+```sh
+docker build -t docker.io/grvp1/reviewsservice:dev src/reviewsservice
+kind load docker-image docker.io/grvp1/reviewsservice:dev --name boutique
+kubectl set image deployment/reviewsservice server=docker.io/grvp1/reviewsservice:dev -n boutique
+kubectl rollout status deployment/reviewsservice -n boutique
+```
 
-2.  Enable Artifact Registry (AR) on your GCP project and configure the
-    `docker` CLI to authenticate to AR:
+(`dev` overlay uses `latest` on purpose; staging/prod are pinned to git SHAs by CI.)
 
-    ```sh
-    gcloud services enable artifactregistry.googleapis.com
-    ```
+## 3. Tests
 
-    ```sh
-    gcloud artifacts repositories create microservices-demo \
-      --repository-format=docker \
-      --location=us \
-    ```
+```sh
+cd src/reviewsservice && go vet ./... && go test -race ./...
+# Postgres-backed tests:
+docker run -d --rm --name reviews-pg -e POSTGRES_DB=reviews -e POSTGRES_USER=reviews \
+  -e POSTGRES_PASSWORD=reviews -p 5432:5432 postgres:16-alpine
+TEST_DATABASE_URL=postgres://reviews:reviews@localhost:5432/reviews?sslmode=disable go test -race ./...
+```
 
-    ```sh
-    gcloud auth configure-docker -q 
-    ```
+## 4. Render what ArgoCD would apply
 
-3.  In the root of this repository, run:
+```sh
+kubectl kustomize kustomize/overlays/prod | less
+helm template vanta helm-chart --set networkPolicies.create=true | less
+```
 
-    ```
-    skaffold run --default-repo=us-docker.pkg.dev/PROJECT_ID/microservices-demo
-    ```
-    
-    Where `PROJECT_ID` is replaced by your Google Cloud project ID.
+## 5. Durable reviews store
 
-    This command:
+Add to `kustomize/overlays/dev/kustomization.yaml`:
 
-    - Builds the container images.
-    - Pushes them to AR.
-    - Applies the `./kubernetes-manifests` deploying the application to
-      Kubernetes.
+```yaml
+components:
+  - ../../components/reviews-persistence
+```
 
-    **Troubleshooting:** If you get "No space left on device" error on Google
-    Cloud Shell, you can build the images on Google Cloud Build: [Enable the
-    Cloud Build
-    API](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com),
-    then run `skaffold run -p gcb --default-repo=us-docker.pkg.dev/[PROJECT_ID]/microservices-demo` instead.
+kind ships a default StorageClass (`standard`), so the PVC binds immediately.
 
-4.  Find the IP address of your application, then visit the application on your
-    browser to confirm installation.
+## Clean up
 
-        kubectl get service frontend-external
-
-5.  Navigate to `http://EXTERNAL-IP` to access the web frontend.
-
-## Option 2 - Local Cluster 
-
-1. Launch a local Kubernetes cluster with one of the following tools:
-
-    - To launch **Minikube** (tested with Ubuntu Linux). Please, ensure that the
-       local Kubernetes cluster has at least:
-        - 4 CPUs
-        - 4.0 GiB memory
-        - 32 GB disk space
-
-      ```shell
-      minikube start --cpus=4 --memory 4096 --disk-size 32g
-      ```
-
-    - To launch **Docker for Desktop** (tested with Mac/Windows). Go to Preferences:
-        - choose “Enable Kubernetes”,
-        - set CPUs to at least 3, and Memory to at least 6.0 GiB
-        - on the "Disk" tab, set at least 32 GB disk space
-
-    - To launch a **Kind** cluster:
-
-      ```shell
-      kind create cluster
-      ```
-
-2. Run `kubectl get nodes` to verify you're connected to the respective control plane.
-
-3. Run `skaffold run` (first time will be slow, it can take ~20 minutes).
-   This will build and deploy the application. If you need to rebuild the images
-   automatically as you refactor the code, run `skaffold dev` command.
-
-4. Run `kubectl get pods` to verify the Pods are ready and running.
-
-5. Run `kubectl port-forward deployment/frontend 8080:8080` to forward a port to the frontend service.
-
-6. Navigate to `localhost:8080` to access the web frontend.
-
-## Adding a new microservice
-
-In general, the set of core microservices for Online Boutique is fairly complete and unlikely to change in the future, but it can be useful to add an additional optional microservice that can be deployed to complement the core services.
-
-See the [Adding a new microservice](adding-new-microservice.md) guide for instructions on how to add a new microservice.
-
-## Cleanup
-
-If you've deployed the application with `skaffold run` command, you can run
-`skaffold delete` to clean up the deployed resources.
+```sh
+kind delete cluster --name boutique                   # or: make kind-down
+```

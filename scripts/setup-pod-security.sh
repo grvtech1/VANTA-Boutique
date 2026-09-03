@@ -12,7 +12,7 @@
 # =============================================================================
 set -euo pipefail
 
-KUBECONFIG="/home/gaurav/online-boutique/kubeconfig-aws"
+KUBECONFIG="${KUBECONFIG:-$PWD/kubeconfig-aws}"
 export KUBECONFIG
 
 echo "=== Applying Pod Security Standards ==="
