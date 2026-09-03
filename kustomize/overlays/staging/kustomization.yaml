@@ -14,13 +14,13 @@ components:
 images:
   - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
     newName: docker.io/grvp1/frontend
-    newTag: 33616a4c60b8ab466194acbc6089218681825158
+    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
   - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
     newName: docker.io/grvp1/productcatalogservice
-    newTag: 33616a4c60b8ab466194acbc6089218681825158
+    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
   - name: docker.io/grvp1/reviewsservice
     newName: docker.io/grvp1/reviewsservice
-    newTag: 33616a4c60b8ab466194acbc6089218681825158
+    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
 
 replicas:
   - name: adservice
