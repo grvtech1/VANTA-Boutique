@@ -5,10 +5,9 @@
 #      all logs and makes them searchable in Grafana.
 # INSTALL:
 #   helm repo add grafana https://grafana.github.io/helm-charts
-#   helm install loki grafana/loki-stack \
+#   helm upgrade --install loki grafana/loki-stack \
 #     --namespace monitoring \
-#     -f monitoring/loki-values.yml \
-#     --kubeconfig /home/gaurav/online-boutique/kubeconfig-aws
+#     -f monitoring/loki-values.yml
 # =============================================================================
 
 loki:

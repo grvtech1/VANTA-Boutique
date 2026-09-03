@@ -1,10 +1,10 @@
 # =============================================================================
-# Prometheus + Grafana Helm Values — Production-Grade Configuration
-# =============================================================================
-# CHANGES FROM PREVIOUS VERSION:
-#   1. Alertmanager ENABLED (was disabled)
-#   2. SRE Alert Rules added (pod crash, node health, deployment mismatch)
-#   3. All components pinned to master node
+# kube-prometheus-stack values — VANTA Boutique
+# - Alertmanager routes by severity to Slack (webhook read from Secret `alertmanager-slack`)
+# - SRE alert rules: pod/node/deployment health + SLO burn-rate on ingress-nginx metrics
+# - Grafana admin password comes from Secret `grafana-admin` (never from this file)
+# - Components pinned to the control-plane node (workers are t3.micro)
+# See monitoring/README.md for the secrets to create before `helm upgrade --install`.
 # =============================================================================
 
 # --- Prometheus Server ---
@@ -45,11 +45,22 @@ grafana:
     limits:
       cpu: 200m
       memory: 256Mi
-  adminPassword: "devops2026"
+  # kubectl -n monitoring create secret generic grafana-admin \
+  #   --from-literal=admin-user=admin --from-literal=admin-password='<strong-password>'
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
   defaultDashboardsEnabled: true
   defaultDashboardsTimezone: "Asia/Kolkata"
+  sidecar:
+    dashboards:
+      enabled: true          # picks up ConfigMaps labelled grafana_dashboard=1 (monitoring/grafana/)
+      searchNamespace: ALL
 
-# --- Alertmanager (NOW ENABLED) ---
+# --- Alertmanager: severity-based routing to Slack ---
+# kubectl -n monitoring create secret generic alertmanager-slack \
+#   --from-literal=webhook='https://hooks.slack.com/services/XXX/YYY/ZZZ'
 alertmanager:
   enabled: true
   alertmanagerSpec:
@@ -66,11 +77,95 @@ alertmanager:
       limits:
         cpu: 50m
         memory: 64Mi
+    secrets:
+      - alertmanager-slack     # mounted at /etc/alertmanager/secrets/alertmanager-slack/
+  config:
+    global:
+      resolve_timeout: 5m
+      slack_api_url_file: /etc/alertmanager/secrets/alertmanager-slack/webhook
+    route:
+      receiver: slack-warning
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers: ["alertname = Watchdog"]
+        - receiver: slack-critical
+          matchers: ["severity = critical"]
+          repeat_interval: 1h
+        - receiver: slack-warning
+          matchers: ["severity = warning"]
+    inhibit_rules:
+      # a firing critical for the same alert/namespace silences its warning twin
+      - source_matchers: ["severity = critical"]
+        target_matchers: ["severity = warning"]
+        equal: ["alertname", "namespace"]
+    receivers:
+      - name: "null"
+      - name: slack-critical
+        slack_configs:
+          - channel: "#vanta-alerts-critical"
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.namespace }})'
+            text: '{{ range .Alerts }}• {{ .Annotations.summary }}{{ "\n" }}{{ end }}'
+      - name: slack-warning
+        slack_configs:
+          - channel: "#vanta-alerts"
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.namespace }})'
+            text: '{{ range .Alerts }}• {{ .Annotations.summary }}{{ "\n" }}{{ end }}'
 
 # --- SRE Alert Rules ---
 additionalPrometheusRulesMap:
-  online-boutique-sre-alerts:
+  vanta-sre-alerts:
     groups:
+      # SLO: 99.5% availability of the storefront measured at the nginx Ingress.
+      # Multi-window burn-rate (Google SRE workbook): fast 1h/5m, slow 6h/30m.
+      - name: boutique.slo.availability
+        rules:
+          - record: slo:ingress_error_ratio:rate5m
+            expr: |
+              sum(rate(nginx_ingress_controller_requests{status=~"5.."}[5m]))
+              / clamp_min(sum(rate(nginx_ingress_controller_requests[5m])), 1)
+          - record: slo:ingress_error_ratio:rate1h
+            expr: |
+              sum(rate(nginx_ingress_controller_requests{status=~"5.."}[1h]))
+              / clamp_min(sum(rate(nginx_ingress_controller_requests[1h])), 1)
+          - record: slo:ingress_error_ratio:rate30m
+            expr: |
+              sum(rate(nginx_ingress_controller_requests{status=~"5.."}[30m]))
+              / clamp_min(sum(rate(nginx_ingress_controller_requests[30m])), 1)
+          - record: slo:ingress_error_ratio:rate6h
+            expr: |
+              sum(rate(nginx_ingress_controller_requests{status=~"5.."}[6h]))
+              / clamp_min(sum(rate(nginx_ingress_controller_requests[6h])), 1)
+          - alert: SLOErrorBudgetBurnFast
+            # 14.4x burn over 1h AND 5m → budget gone in ~2 days; page.
+            expr: slo:ingress_error_ratio:rate1h > (14.4 * 0.005) and slo:ingress_error_ratio:rate5m > (14.4 * 0.005)
+            for: 2m
+            labels: { severity: critical, team: sre, slo: availability }
+            annotations:
+              summary: "Storefront availability SLO burning FAST (1h error ratio {{ $value | humanizePercentage }})"
+              runbook: docs/RUNBOOKS.md#ingress-5xx--slo-burn
+          - alert: SLOErrorBudgetBurnSlow
+            # 6x burn over 6h AND 30m → budget gone in ~5 days; ticket.
+            expr: slo:ingress_error_ratio:rate6h > (6 * 0.005) and slo:ingress_error_ratio:rate30m > (6 * 0.005)
+            for: 15m
+            labels: { severity: warning, team: sre, slo: availability }
+            annotations:
+              summary: "Storefront availability SLO burning slowly (6h error ratio {{ $value | humanizePercentage }})"
+              runbook: docs/RUNBOOKS.md#ingress-5xx--slo-burn
+      - name: boutique.reviews
+        rules:
+          - alert: ReviewsDatabaseDown
+            expr: kube_deployment_status_ready_replicas{namespace=~"boutique.*", deployment="reviews-db"} == 0
+            for: 2m
+            labels: { severity: critical, team: sre }
+            annotations:
+              summary: "reviews-db has no ready replica in {{ $labels.namespace }} — reviews will fail health checks"
+              runbook: docs/RUNBOOKS.md#reviews-db-down
       - name: boutique.pod.health
         rules:
           - alert: PodCrashLooping

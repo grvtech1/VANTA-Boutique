@@ -1,0 +1,60 @@
+# Grafana dashboard provisioned via the kube-prometheus-stack sidecar (label grafana_dashboard=1).
+#   kubectl apply -f monitoring/grafana/vanta-overview-dashboard.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vanta-overview-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  vanta-overview.json: |
+    {
+      "title": "VANTA Boutique — Overview",
+      "uid": "vanta-overview",
+      "schemaVersion": 39,
+      "editable": true,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "30s",
+      "templating": { "list": [
+        { "name": "ns", "type": "query", "datasource": { "type": "prometheus" },
+          "query": "label_values(kube_deployment_status_replicas, namespace)",
+          "current": { "text": "boutique", "value": "boutique" }, "refresh": 2 }
+      ] },
+      "panels": [
+        { "id": 1, "type": "stat", "title": "Deployments ready / desired",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+          "targets": [ { "expr": "sum(kube_deployment_status_ready_replicas{namespace=\"$ns\"}) / sum(kube_deployment_spec_replicas{namespace=\"$ns\"})", "legendFormat": "ready ratio" } ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 0.9 }, { "color": "green", "value": 1 } ] } } } },
+        { "id": 2, "type": "stat", "title": "Ingress 5xx ratio (5m)",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+          "targets": [ { "expr": "slo:ingress_error_ratio:rate5m", "legendFormat": "5xx ratio" } ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.005 }, { "color": "red", "value": 0.02 } ] } } } },
+        { "id": 3, "type": "stat", "title": "Ingress req/s",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+          "targets": [ { "expr": "sum(rate(nginx_ingress_controller_requests[5m]))", "legendFormat": "rps" } ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } } },
+        { "id": 4, "type": "stat", "title": "Pod restarts (1h)",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+          "targets": [ { "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"$ns\"}[1h]))", "legendFormat": "restarts" } ],
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 } ] } } } },
+        { "id": 5, "type": "timeseries", "title": "CPU by pod",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "targets": [ { "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$ns\", container!=\"\"}[5m]))", "legendFormat": "{{pod}}" } ],
+          "fieldConfig": { "defaults": { "unit": "cores" } } },
+        { "id": 6, "type": "timeseries", "title": "Memory (working set) by pod",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "targets": [ { "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"$ns\", container!=\"\"})", "legendFormat": "{{pod}}" } ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } } },
+        { "id": 7, "type": "timeseries", "title": "Ingress requests by status class",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "targets": [ { "expr": "sum by (status) (rate(nginx_ingress_controller_requests[5m]))", "legendFormat": "{{status}}" } ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } } },
+        { "id": 8, "type": "timeseries", "title": "HPA current vs max replicas",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$ns\"}", "legendFormat": "{{horizontalpodautoscaler}} current" },
+            { "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"$ns\"}", "legendFormat": "{{horizontalpodautoscaler}} max" }
+          ] }
+      ]
+    }
