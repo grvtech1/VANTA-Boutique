@@ -1,0 +1,45 @@
+# Manual dependency bump — the fix path when the CI Trivy gate blocks on a fixable CVE.
+# Run from the Actions tab (or `gh workflow run deps-bump.yml`), optionally naming modules.
+# It commits the go.mod/go.sum changes to main WITHOUT [skip ci], so CI re-runs the gate.
+name: deps-bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      modules:
+        description: "Go modules to bump to @latest (space-separated)"
+        required: false
+        default: "golang.org/x/crypto google.golang.org/grpc"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deps-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/frontend/go.mod
+      - name: Bump + tidy + build/vet
+        env:
+          MODULES: ${{ inputs.modules }}
+        run: scripts/bump-go-deps.sh
+      - name: Commit + push
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- 'src/*/go.mod' 'src/*/go.sum'; then echo "nothing to bump"; exit 0; fi
+          git add 'src/*/go.mod' 'src/*/go.sum'
+          git commit -m "fix(deps): bump ${{ inputs.modules }} to latest (Trivy CRITICAL gate)" \
+                     -m "Automated by the deps-bump workflow; CI re-runs the scan gate on this commit."
+          git push
