@@ -26,5 +26,5 @@ ArgoCD (in cluster) ─ sees the Git change → syncs staging.  Prod: scripts/pr
 | `terraform-validate-ci.yaml` | changes under `terraform/` | `terraform validate` |
 
 Design notes: the pipeline never holds cluster credentials (pull-based GitOps); images are
-tagged with the git SHA only; the same flow is mirrored for Jenkins in [`/Jenkinsfile`](/Jenkinsfile).
+tagged with the git SHA only.
 Secrets required in the repo: `DOCKER_USERNAME`, `DOCKER_PASSWORD`.

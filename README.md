@@ -12,7 +12,7 @@
   <a href="/terraform"><img alt="Terraform" src="https://img.shields.io/badge/IaC-Terraform-7b42bc"></a>
   <a href="/argocd"><img alt="ArgoCD" src="https://img.shields.io/badge/GitOps-ArgoCD-ef7b4d"></a>
   <a href="/monitoring"><img alt="Observability" src="https://img.shields.io/badge/observability-Prometheus%20%2B%20Grafana-e6522c"></a>
-  <a href="/.github/workflows"><img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-Actions%20%2B%20Jenkins-2088ff"></a>
+  <a href="/.github/workflows"><img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088ff"></a>
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-green">
 </p>
 
@@ -49,7 +49,7 @@ pipeline that builds, tests, scans, and ships every service.
   container, multi-service Docker builds, a **Trivy CRITICAL gate** (scan what ships), a
   **CycloneDX SBOM** per image, and Kustomize/Helm render validation. On `main`, CD pushes
   **immutable git-SHA images** and **commits the tag into the staging overlay** — pull-based
-  GitOps, CI never touches the cluster. Mirrored as a **Jenkins declarative pipeline** ([`Jenkinsfile`](/Jenkinsfile)).
+  GitOps, CI never touches the cluster.
 - ☸️ **Self-managed platform on AWS** — the whole stack is reproducible from code:
   **Terraform** provisions a VPC + 3 EC2 nodes, **Ansible** + `kubeadm` form the cluster,
   **ArgoCD** delivers via pull-based GitOps, and **Prometheus/Grafana/Loki** provide
@@ -147,7 +147,7 @@ kubeadm** form the cluster, **ArgoCD** delivers changes via pull-based GitOps, a
 flowchart LR
     dev([👩‍💻 git push]):::ext
 
-    subgraph ci["CI/CD · GitHub Actions + Jenkins"]
+    subgraph ci["CI/CD · GitHub Actions"]
       direction LR
       test[test + vet] --> build[build image] --> scan[Trivy scan] --> ship[push image<br/>+ bump tag in Git]
     end
@@ -199,7 +199,7 @@ each choice in **[Decisions](/docs/DECISIONS.md)**; incident playbooks in **[Run
 | **Configuration** | Ansible — `kubeadm` cluster bootstrap + an audit playbook | [`/ansible`](/ansible) |
 | **Orchestration** | Self-managed **Kubernetes** (`kubeadm` + **Calico** CNI), Kustomize base + namespaced `dev`/`staging`/`prod` overlays + composable components | [`/scripts`](/scripts) · [`/kustomize`](/kustomize) |
 | **GitOps delivery** | **ArgoCD app-of-apps** — `staging` auto-syncs from CI-committed **git-SHA tags**; `prod` is manual sync (promote → approve), rollback = `git revert` | [`/argocd`](/argocd) · [`scripts/promote.sh`](/scripts/promote.sh) |
-| **CI/CD** | **GitHub Actions** + **Jenkins** — test, build, **Trivy CRITICAL gate**, **SBOM**, Kustomize/Helm render + `terraform-validate` gates; CD holds no cluster credentials | [`/.github/workflows`](/.github/workflows) · [`Jenkinsfile`](/Jenkinsfile) |
+| **CI/CD** | **GitHub Actions** — test, build, **Trivy CRITICAL gate**, **SBOM**, Kustomize/Helm render + `terraform-validate` gates; CD holds no cluster credentials | [`/.github/workflows`](/.github/workflows) |
 | **Ingress & TLS** | **nginx Ingress** (rate limits, timeouts) + **cert-manager** Let's Encrypt via a Kustomize `tls` component | [`/kustomize/components/ingress`](/kustomize/components/ingress) · [`tls`](/kustomize/components/tls) |
 | **Observability** | **Prometheus + Grafana + Alertmanager** — SRE rules, **availability SLO with multi-window burn-rate alerts**, severity-routed **Slack** notifications, a provisioned dashboard; **Loki** for logs | [`/monitoring`](/monitoring) |
 | **Security** | RBAC, Pod Security, **default-deny NetworkPolicies** (incl. the reviews DB), least-privilege security groups, non-root distroless images, image scan gate, **no secrets in Git** | [`/scripts`](/scripts) · [`/kustomize/components/network-policies`](/kustomize/components/network-policies) |
@@ -269,7 +269,7 @@ components:
 - **Infrastructure:** Terraform (AWS VPC + EC2) · Ansible · self-managed Kubernetes (`kubeadm` + Calico)
 - **Orchestration:** Kubernetes · Kustomize (base + namespaced `dev`/`staging`/`prod` overlays + components) · Helm
 - **Ingress & TLS:** nginx Ingress (rate limits) · cert-manager (Let's Encrypt)
-- **CI/CD & GitOps:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy gate, CycloneDX SBOM) · ArgoCD app-of-apps · git-SHA image tags
+- **CI/CD & GitOps:** GitHub Actions (vet, `-race` tests, Postgres service container, Trivy gate, CycloneDX SBOM) · ArgoCD app-of-apps · git-SHA image tags
 - **Observability:** Prometheus · Grafana · Alertmanager (Slack) · SLO burn-rate alerts · Loki
 - **Resilience:** HPA · PDB · NetworkPolicies · Velero backups · chaos & failover drills
 - **Frontend extras:** schema.org JSON-LD · accessible review components
