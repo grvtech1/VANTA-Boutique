@@ -1,6 +1,7 @@
 # Manual dependency bump — the fix path when the CI Trivy gate blocks on a fixable CVE.
 # Run from the Actions tab (or `gh workflow run deps-bump.yml`), optionally naming modules.
-# It commits the go.mod/go.sum changes to main WITHOUT [skip ci], so CI re-runs the gate.
+# It commits go.mod/go.sum to main and then dispatches CI itself: pushes made with GITHUB_TOKEN
+# never trigger `push` workflows, but workflow_dispatch is exempt — so the gate re-runs.
 name: deps-bump
 
 on:
@@ -13,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: deps-bump
@@ -34,12 +36,21 @@ jobs:
           MODULES: ${{ inputs.modules }}
         run: scripts/bump-go-deps.sh
       - name: Commit + push
+        id: push
         run: |
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- 'src/*/go.mod' 'src/*/go.sum'; then echo "nothing to bump"; exit 0; fi
+          if git diff --quiet -- 'src/*/go.mod' 'src/*/go.sum'; then
+            echo "nothing to bump"; echo "pushed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           git add 'src/*/go.mod' 'src/*/go.sum'
-          git commit -m "fix(deps): bump ${{ inputs.modules }} to latest (Trivy CRITICAL gate)" \
-                     -m "Automated by the deps-bump workflow; CI re-runs the scan gate on this commit."
+          git commit -m "fix(deps): bump ${{ inputs.modules }} (Trivy CRITICAL gate)" \
+                     -m "Automated by the deps-bump workflow; CI is dispatched on this commit to re-run the scan gate."
           git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+      - name: Dispatch CI on the new commit
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci-pipeline.yml --ref main

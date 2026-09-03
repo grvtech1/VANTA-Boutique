@@ -6,6 +6,7 @@
 name: "CI Pipeline - Build and Test"
 
 on:
+  workflow_dispatch: {}   # manual re-run; deps-bump uses it because GITHUB_TOKEN pushes never trigger push workflows
   push:
     branches: [main, "feature/**", "hotfix/**"]
   pull_request:

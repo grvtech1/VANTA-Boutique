@@ -22,6 +22,7 @@ ArgoCD (in cluster) ─ sees the Git change → syncs staging.  Prod: scripts/pr
 | `cd-pipeline.yml` | `workflow_run` of CI succeeded on `main` | push immutable images, GitOps-promote **staging** |
 | `kustomize-build-ci.yaml` | changes under `kustomize/` | every overlay + test combination must render |
 | `helm-lint-ci.yaml` | changes under `helm-chart/` | `helm lint` + `helm template` (default + hardened values) |
+| `deps-bump.yml` | manual (`gh workflow run deps-bump.yml`) | bump Go modules to minimum fixed versions, build/vet, commit, then dispatch CI (GITHUB_TOKEN pushes never trigger push workflows) |
 | `terraform-validate-ci.yaml` | changes under `terraform/` | `terraform validate` |
 
 Design notes: the pipeline never holds cluster credentials (pull-based GitOps); images are
