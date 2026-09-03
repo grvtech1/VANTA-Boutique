@@ -1,9 +1,27 @@
+# staging overlay — auto-synced by ArgoCD. Image tags below are IMMUTABLE git SHAs written by
+# the CD pipeline (scripts/bump-image-tags.sh). `latest` appears only until the first CD run.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: boutique-staging
 resources:
+  - namespace.yaml
   - ../../base
 
-# Replicas configuration for Staging environment
+components:
+  - ../../components/pod-disruption-budgets
+  - ../../components/reviews-persistence   # durable Postgres store → reviewsservice can run 2 replicas
+
+images:
+  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
+    newName: docker.io/grvp1/frontend
+    newTag: latest
+  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
+    newName: docker.io/grvp1/productcatalogservice
+    newTag: latest
+  - name: docker.io/grvp1/reviewsservice
+    newName: docker.io/grvp1/reviewsservice
+    newTag: latest
+
 replicas:
   - name: adservice
     count: 2
@@ -25,5 +43,19 @@ replicas:
     count: 2
   - name: recommendationservice
     count: 2
+  - name: reviewsservice
+    count: 2
   - name: shippingservice
     count: 2
+
+patches:
+  - target:
+      kind: Service
+      name: frontend-external
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: replace
+        path: /spec/ports/0/nodePort
+        value: 30081

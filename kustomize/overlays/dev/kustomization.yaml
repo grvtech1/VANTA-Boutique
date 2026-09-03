@@ -1,11 +1,14 @@
+# dev overlay — local kind / single-node. Floating `latest` tags are acceptable HERE ONLY
+# (fast inner loop). staging/prod are pinned to immutable git SHAs by the CD pipeline.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: boutique
 resources:
+  - namespace.yaml
   - ../../base
 
-# Use our custom-built images (pushed by the CD pipeline to Docker Hub)
-# instead of the upstream Google sample images. reviewsservice already
-# references docker.io/grvp1 directly in the base manifest.
+# Services rebuilt by this repo's CI come from docker.io/grvp1; all other services use the
+# unmodified upstream images (we do not rebuild what we did not change).
 images:
   - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
     newName: docker.io/grvp1/frontend
@@ -13,8 +16,10 @@ images:
   - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
     newName: docker.io/grvp1/productcatalogservice
     newTag: latest
+  - name: docker.io/grvp1/reviewsservice
+    newName: docker.io/grvp1/reviewsservice
+    newTag: latest
 
-# Replicas configuration for Dev environment
 replicas:
   - name: adservice
     count: 1
@@ -42,6 +47,7 @@ replicas:
     count: 1
 
 patches:
+  # Expose the storefront on NodePort 30080 (kind-local.yaml maps it to http://localhost:8888)
   - target:
       kind: Service
       name: frontend-external
@@ -52,4 +58,3 @@ patches:
       - op: replace
         path: /spec/ports/0/nodePort
         value: 30080
-

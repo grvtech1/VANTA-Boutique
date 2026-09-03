@@ -70,7 +70,7 @@ spec:
                 - ALL
             privileged: false
             readOnlyRootFilesystem: true
-          image: {{ .Values.images.repository }}/{{ .Values.frontend.name }}:{{ .Values.images.tag | default .Chart.AppVersion }}
+          image: {{ include "vanta.image" (list . "frontend" .Values.frontend.name) }}
           ports:
           - containerPort: 8080
           readinessProbe:
@@ -106,28 +106,27 @@ spec:
             value: "{{ .Values.checkoutService.name }}:5050"
           - name: AD_SERVICE_ADDR
             value: "{{ .Values.adService.name }}:9555"
+          - name: REVIEWS_SERVICE_ADDR
+            value: "{{ .Values.reviewsService.name }}:50051"
+          # The frontend binary requires this address even though the assistant feature is off.
           - name: SHOPPING_ASSISTANT_SERVICE_ADDR
-            value: "{{ .Values.shoppingAssistantService.name }}:80"
+            value: "shoppingassistantservice:80"
+          - name: ENABLE_ASSISTANT
+            value: "false"
           - name: ENV_PLATFORM
             value: {{ .Values.frontend.platform | quote }}
-          {{- if .Values.opentelemetryCollector.create }}
+          {{- if .Values.telemetry.collectorAddr }}
           - name: COLLECTOR_SERVICE_ADDR
-            value: "{{ .Values.opentelemetryCollector.name }}:4317"
+            value: {{ .Values.telemetry.collectorAddr | quote }}
           - name: OTEL_SERVICE_NAME
             value: "{{ .Values.frontend.name }}"
           {{- end }}
-          {{- if .Values.googleCloudOperations.tracing }}
+          {{- if .Values.telemetry.tracing }}
           - name: ENABLE_TRACING
             value: "1"
           {{- end }}
-          {{- if .Values.googleCloudOperations.profiler }}
           - name: ENABLE_PROFILER
-            value: "1"
-          {{- end }}
-          - name: CYMBAL_BRANDING
-            value: {{ .Values.frontend.cymbalBranding | quote }}
-          - name: ENABLE_ASSISTANT
-            value: {{ .Values.shoppingAssistantService.create | quote }}
+            value: {{ ternary "1" "0" .Values.telemetry.profiler | quote }}
           - name: ENABLE_SINGLE_SHARED_SESSION
             value: {{ .Values.frontend.singleSharedSession | quote }}
           resources:
@@ -222,8 +221,9 @@ spec:
     - ./{{ .Values.productCatalogService.name }}.{{ .Release.Namespace }}.svc.cluster.local
     - ./{{ .Values.recommendationService.name }}.{{ .Release.Namespace }}.svc.cluster.local
     - ./{{ .Values.shippingService.name }}.{{ .Release.Namespace }}.svc.cluster.local
-    {{- if .Values.opentelemetryCollector.create }}
-    - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    - ./{{ .Values.reviewsService.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    {{- if .Values.telemetry.collectorAddr }}
+    - {{ .Values.telemetry.collectorAddr }}
     {{- end }}
 {{- end }}
 {{- if .Values.authorizationPolicies.create }}

@@ -1,101 +1,89 @@
 # =============================================================================
-# CD Pipeline — Continuous Delivery via ArgoCD
-# =============================================================================
-# TRIGGER: Push to main branch (after staging approval)
-# FLOW:    Build -> Push to Docker Hub -> Trigger ArgoCD Sync -> Notify
+# CD — pull-based GitOps promotion to STAGING
+# Trigger: CI succeeded on main. Flow: build → push :<git-sha> → commit the SHA into
+# kustomize/overlays/staging → ArgoCD (in-cluster) notices the Git change and syncs.
+# CI holds NO cluster credentials and never calls the ArgoCD API. Prod is promoted by
+# scripts/promote.sh + a manual ArgoCD sync.
 # =============================================================================
 name: CD Pipeline
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline - Build and Test"]
+    types: [completed]
     branches: [main]
 
+permissions:
+  contents: write
+
+concurrency:
+  group: cd-main
+  cancel-in-progress: false
+
 env:
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  SHA: ${{ github.event.workflow_run.head_sha }}
 
 jobs:
-  # =========================================
-  # Job 1: Build and Push Docker Images
-  # =========================================
   build-and-push:
+    name: "Push ${{ matrix.service }}:<sha>"
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [frontend, productcatalogservice, reviewsservice]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push
-        uses: docker/build-push-action@v5
+      # Immutable tag only. No `:latest` — a moving tag makes "what is running?" unanswerable.
+      - uses: docker/build-push-action@v6
         with:
           context: ./src/${{ matrix.service }}
           push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ github.sha }}
-            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+          tags: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ env.SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # =========================================
-  # Job 2: Trigger ArgoCD Sync
-  # =========================================
-  deploy:
+  promote-staging:
+    name: "GitOps: pin staging to <sha>"
     needs: build-and-push
     runs-on: ubuntu-latest
-    env:
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
     steps:
-      - name: Trigger ArgoCD Application Sync
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Bump image tags in kustomize/overlays/staging
+        run: scripts/bump-image-tags.sh kustomize/overlays/staging/kustomization.yaml "$SHA"
+      - name: Commit + push (skip ci to avoid a loop)
         run: |
           set -euo pipefail
-          if [ -z "${ARGOCD_SERVER}" ] || [ -z "${ARGOCD_AUTH_TOKEN}" ]; then
-            echo "::warning::ARGOCD_SERVER / ARGOCD_AUTH_TOKEN not configured — skipping automated sync."
-            echo "Images are pushed to Docker Hub; sync manually (scripts/sync-app.sh) or set the secrets."
-            exit 0
-          fi
-          echo "=== Triggering ArgoCD sync for online-boutique ==="
-          # Fail the job (no '|| echo' swallow) if the sync genuinely fails, so a
-          # broken deploy is never reported as green.
-          http_code=$(curl -sS -o /tmp/sync.out -w "%{http_code}" -X POST \
-            "https://${ARGOCD_SERVER}/api/v1/applications/online-boutique/sync" \
-            -H "Authorization: Bearer ${ARGOCD_AUTH_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"revision": "main", "prune": true}' \
-            --insecure)
-          echo "ArgoCD responded HTTP ${http_code}"
-          cat /tmp/sync.out || true
-          if [ "${http_code}" -lt 200 ] || [ "${http_code}" -ge 300 ]; then
-            echo "::error::ArgoCD sync failed (HTTP ${http_code})"
-            exit 1
-          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then echo "staging already at $SHA"; exit 0; fi
+          git add kustomize/overlays/staging/kustomization.yaml
+          git commit -m "ci(gitops): promote ${SHA::7} to staging [skip ci]" \
+                     -m "Image tags pinned by CD from CI run ${{ github.event.workflow_run.id }}."
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase origin main
+          done
+          echo "push failed after retries" >&2; exit 1
 
-  # =========================================
-  # Job 3: Post-Deploy Notification
-  # =========================================
   notify:
-    needs: deploy
-    runs-on: ubuntu-latest
+    needs: promote-staging
     if: always()
+    runs-on: ubuntu-latest
     steps:
-      - name: Deployment Status
-        run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "CD Pipeline SUCCESS — Images pushed and ArgoCD sync triggered"
-            echo "   Commit: ${{ github.sha }}"
-            echo "   Branch: ${{ github.ref_name }}"
-            echo "   Actor:  ${{ github.actor }}"
+      - run: |
+          if [ "${{ needs.promote-staging.result }}" = "success" ]; then
+            echo "CD OK — ${SHA::7} pushed and pinned in staging; ArgoCD will sync it."
           else
-            echo "CD Pipeline FAILED — Check ArgoCD and Docker Hub"
-            echo "   Commit: ${{ github.sha }}"
+            echo "CD FAILED for ${SHA::7} — check build-and-push / promote-staging logs."
           fi
+          echo "Promote to prod: scripts/promote.sh $SHA && git push  →  argocd app sync vanta-boutique-prod"

@@ -1,0 +1,24 @@
+# App-of-apps root: ArgoCD manages the environment Applications declared in argocd/apps/.
+# Register ONCE (scripts/setup-argocd.sh does it); every later change is a Git commit.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vanta-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/grvtech1/VANTA-Boutique.git
+    targetRevision: main
+    path: argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

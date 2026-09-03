@@ -1,0 +1,31 @@
+# prod: MANUAL SYNC. Nothing reaches prod without an explicit `argocd app sync vanta-boutique-prod`
+# (or the UI button). Promotion = `scripts/promote.sh <sha>` which commits the tag into
+# kustomize/overlays/prod; ArgoCD then shows OutOfSync until a human approves.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vanta-boutique-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/grvtech1/VANTA-Boutique.git
+    targetRevision: main
+    path: kustomize/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique
+  syncPolicy:
+    # no `automated:` block on purpose — manual approval gate
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

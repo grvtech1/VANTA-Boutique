@@ -92,17 +92,17 @@ spec:
           value: "{{ .Values.currencyService.name }}:7000"
         - name: CART_SERVICE_ADDR
           value: "{{ .Values.cartService.name }}:7070"
-        {{- if .Values.opentelemetryCollector.create }}
+        {{- if .Values.telemetry.collectorAddr }}
         - name: COLLECTOR_SERVICE_ADDR
-          value: "{{ .Values.opentelemetryCollector.name }}:4317"
+          value: {{ .Values.telemetry.collectorAddr | quote }}
         - name: OTEL_SERVICE_NAME
           value: "{{ .Values.checkoutService.name }}"
         {{- end }}
-        {{- if .Values.googleCloudOperations.tracing }}
+        {{- if .Values.telemetry.tracing }}
         - name: ENABLE_TRACING
           value: "1"
         {{- end }}
-        {{- if .Values.googleCloudOperations.profiler }}
+        {{- if .Values.telemetry.profiler }}
         - name: ENABLE_PROFILER
           value: "1"
         {{- end }}
@@ -169,8 +169,8 @@ spec:
     - ./{{ .Values.paymentService.name }}.{{ .Release.Namespace }}.svc.cluster.local
     - ./{{ .Values.productCatalogService.name }}.{{ .Release.Namespace }}.svc.cluster.local
     - ./{{ .Values.shippingService.name }}.{{ .Release.Namespace }}.svc.cluster.local
-    {{- if .Values.opentelemetryCollector.create }}
-    - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    {{- if .Values.telemetry.collectorAddr }}
+    - {{ .Values.telemetry.collectorAddr }}
     {{- end }}
 {{- end }}
 {{- if .Values.authorizationPolicies.create }}

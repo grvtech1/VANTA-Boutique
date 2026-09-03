@@ -1,38 +1,29 @@
-# Helm chart for Online Boutique
+# Helm chart — vanta-boutique
 
-If you'd like to deploy Online Boutique via its Helm chart, you could leverage the following instructions.
+Alternative to the Kustomize overlays for clusters where Helm is the packaging standard.
+Derived from the upstream Online Boutique chart (Apache-2.0) and adapted: a `reviewsservice`
+template, per-service image overrides, and cloud-neutral telemetry (no GCP-specific values).
 
-**Warning:** Online Boutique's Helm chart is currently experimental. If you have feedback or run into issues, let us know inside [GitHub Issue #1319](https://github.com/GoogleCloudPlatform/microservices-demo/issues/1319) or by creating a [new GitHub Issue](https://github.com/GoogleCloudPlatform/microservices-demo/issues/new/choose).
-
-Deploy the default setup of Online Boutique:
 ```sh
-helm upgrade onlineboutique oci://us-docker.pkg.dev/online-boutique-ci/charts/onlineboutique \
-    --install
+helm lint helm-chart
+helm template vanta helm-chart | less
+
+helm upgrade --install vanta helm-chart -n boutique --create-namespace \
+  --set images.overrides.frontend.tag=<git-sha> \
+  --set images.overrides.productcatalogservice.tag=<git-sha> \
+  --set images.overrides.reviewsservice.tag=<git-sha>
 ```
 
-Deploy advanced scenario of Online Boutique:
-```sh
-helm upgrade onlineboutique oci://us-docker.pkg.dev/online-boutique-ci/charts/onlineboutique \
-    --install \
-    --create-namespace \
-    --set images.repository=us-docker.pkg.dev/my-project/microservices-demo \
-    --set frontend.externalService=false \
-    --set redis.create=false \
-    --set cartservice.database.type=spanner \
-    --set cartservice.database.connectionString=projects/my-project/instances/onlineboutique/databases/carts \
-    --set serviceAccounts.create=true \
-    --set authorizationPolicies.create=true \
-    --set networkPolicies.create=true \
-    --set sidecars.create=true \
-    --set frontend.virtualService.create=true \
-    --set 'serviceAccounts.annotations.iam\.gke\.io/gcp-service-account=spanner-db-user@my-project.iam.gserviceaccount.com' \
-    --set serviceAccounts.annotationsOnlyForCartservice=true \
-    -n onlineboutique
-```
+Useful values:
 
-For the full list of configurations, see [values.yaml](./values.yaml).
+| Value | Default | Notes |
+| --- | --- | --- |
+| `images.overrides.<svc>.{repository,tag}` | `docker.io/grvp1/<svc>:latest` | the 3 services this repo rebuilds; pin `tag` to a git SHA |
+| `images.repository` / `images.tag` | upstream / `appVersion` | unmodified upstream services |
+| `reviewsService.replicas` | `1` | `>1` requires `reviewsService.database.enabled=true` (the chart refuses otherwise) |
+| `reviewsService.database.enabled` | `false` | inject `DATABASE_URL` from Secret `reviews-db` (create it, or use the kustomize component) |
+| `networkPolicies.create` | `false` | deny-all + per-service allow policies |
+| `telemetry.collectorAddr` | `""` | OTLP/gRPC collector address; set `telemetry.tracing=true` to emit traces |
+| `frontend.platform` | `local` | UI banner only |
 
-You could also find advanced scenarios with these blogs below:
-- [Online Boutique sample’s Helm chart, to simplify the setup of advanced and secured scenarios with Service Mesh and GitOps](https://medium.com/google-cloud/246119e46d53)
-- [gRPC health probes with Kubernetes 1.24+](https://medium.com/google-cloud/b5bd26253a4c)
-- [Use Google Cloud Spanner with the Online Boutique sample](https://medium.com/google-cloud/f7248e077339)
+CI (`helm-lint-ci.yaml`) lints and renders the chart with default and hardened values.

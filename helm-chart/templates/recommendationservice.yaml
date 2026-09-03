@@ -85,17 +85,17 @@ spec:
           value: "8080"
         - name: PRODUCT_CATALOG_SERVICE_ADDR
           value: "{{ .Values.productCatalogService.name }}:3550"
-        {{- if .Values.opentelemetryCollector.create }}
+        {{- if .Values.telemetry.collectorAddr }}
         - name: COLLECTOR_SERVICE_ADDR
-          value: "{{ .Values.opentelemetryCollector.name }}:4317"
+          value: {{ .Values.telemetry.collectorAddr | quote }}
         - name: OTEL_SERVICE_NAME
           value: "{{ .Values.recommendationService.name }}"
         {{- end }}
-        {{- if .Values.googleCloudOperations.tracing }}
+        {{- if .Values.telemetry.tracing }}
         - name: ENABLE_TRACING
           value: "1"
         {{- end }}
-        {{- if not .Values.googleCloudOperations.profiler }}
+        {{- if not .Values.telemetry.profiler }}
         - name: DISABLE_PROFILER
           value: "1"
         {{- end }}
@@ -157,8 +157,8 @@ spec:
   - hosts:
     - istio-system/*
     - ./{{ .Values.productCatalogService.name }}.{{ .Release.Namespace }}.svc.cluster.local
-    {{- if .Values.opentelemetryCollector.create }}
-    - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    {{- if .Values.telemetry.collectorAddr }}
+    - {{ .Values.telemetry.collectorAddr }}
     {{- end }}
 {{- end }}
 {{- if .Values.authorizationPolicies.create }}

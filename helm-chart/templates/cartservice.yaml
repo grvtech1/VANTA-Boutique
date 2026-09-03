@@ -77,11 +77,7 @@ spec:
         ports:
         - containerPort: 7070
         env:
-        {{- if eq .Values.cartDatabase.type "spanner" }}
-        - name: SPANNER_CONNECTION_STRING
-        {{- else }}
         - name: REDIS_ADDR
-        {{- end }}
           value: {{ .Values.cartDatabase.connectionString | quote }}
         resources:
           {{- toYaml .Values.cartService.resources | nindent 10 }}
@@ -159,8 +155,8 @@ spec:
     - ./{{ .Values.cartDatabase.inClusterRedis.name }}.{{ .Release.Namespace }}.svc.cluster.local
     {{- end }}
     {{- end }}
-    {{- if .Values.opentelemetryCollector.create }}
-    - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    {{- if .Values.telemetry.collectorAddr }}
+    - {{ .Values.telemetry.collectorAddr }}
     {{- end }}
 {{- end }}
 {{- if .Values.authorizationPolicies.create }}

@@ -142,8 +142,8 @@ spec:
   egress:
   - hosts:
     - istio-system/*
-    {{- if .Values.opentelemetryCollector.create }}
-    - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
+    {{- if .Values.telemetry.collectorAddr }}
+    - {{ .Values.telemetry.collectorAddr }}
     {{- end }}
 {{- end }}
 {{- if .Values.authorizationPolicies.create }}

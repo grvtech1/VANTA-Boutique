@@ -1,10 +1,32 @@
+# prod overlay — MANUAL ArgoCD sync. Tags are immutable git SHAs promoted with
+# `scripts/promote.sh <sha>` (which edits this file and opens the change for review).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: boutique
 resources:
+  - namespace.yaml
   - ../../base
   - hpa.yaml
+  - hpa-reviews.yaml
 
-# Replicas configuration for Prod environment (3 replicas)
+components:
+  - ../../components/network-policies       # default-deny + per-service allow lists
+  - ../../components/pod-disruption-budgets # survive node drains
+  - ../../components/reviews-persistence    # durable Postgres reviews store
+  - ../../components/ingress                # nginx Ingress (rate-limited)
+  - ../../components/tls                    # cert-manager TLS on the Ingress
+
+images:
+  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
+    newName: docker.io/grvp1/frontend
+    newTag: latest
+  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
+    newName: docker.io/grvp1/productcatalogservice
+    newTag: latest
+  - name: docker.io/grvp1/reviewsservice
+    newName: docker.io/grvp1/reviewsservice
+    newTag: latest
+
 replicas:
   - name: adservice
     count: 3
@@ -26,5 +48,28 @@ replicas:
     count: 3
   - name: recommendationservice
     count: 3
+  - name: reviewsservice
+    count: 2
   - name: shippingservice
     count: 3
+
+patches:
+  # Public hostname for the Ingress — change to your domain (DNS A record → NLB / node IP).
+  - target:
+      kind: Ingress
+      name: boutique-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: vanta.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: vanta.example.com
+  # frontend-external stays ClusterIP-less in prod: traffic enters only through the Ingress
+  - target:
+      kind: Service
+      name: frontend-external
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP

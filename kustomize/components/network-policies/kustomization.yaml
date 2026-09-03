@@ -28,4 +28,5 @@ resources:
 - network-policy-recommendationservice.yaml
 - network-policy-redis.yaml
 - network-policy-reviewsservice.yaml
+- network-policy-reviews-db.yaml
 - network-policy-shippingservice.yaml

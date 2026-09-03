@@ -1,0 +1,24 @@
+# TLS for the Ingress via cert-manager (Let's Encrypt HTTP-01).
+# Prereq on the cluster:  helm upgrade --install cert-manager jetstack/cert-manager \
+#   -n cert-manager --create-namespace --set crds.enabled=true
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - cluster-issuer.yaml
+patches:
+  - target:
+      kind: Ingress
+      name: boutique-ingress
+    patch: |-
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
+      - op: add
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1ssl-redirect
+        value: "true"
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - vanta.local
+            secretName: boutique-tls

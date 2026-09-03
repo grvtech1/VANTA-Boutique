@@ -63,3 +63,25 @@ spec:
   selector:
     matchLabels:
       app: redis-cart
+---
+# reviewsservice runs >=2 replicas wherever reviews-persistence is enabled (staging/prod).
+# NOTE: never put a minAvailable:1 PDB on a single-replica Deployment — it blocks node drains.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: reviewsservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: reviewsservice
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: productcatalogservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: productcatalogservice

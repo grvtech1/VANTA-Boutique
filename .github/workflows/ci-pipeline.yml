@@ -1,85 +1,51 @@
 # =============================================================================
-# CI Pipeline - Online Boutique DevOps
-# =============================================================================
-# WHAT: Runs on every push to develop/feature branches and on PRs to main
-# WHY:  Catches bugs BEFORE they reach production
-# WHO:  Every developer triggers this automatically on git push
+# CI — test → build → scan (gate) → SBOM → validate manifests
+# Runs on every push to main / feature / hotfix branches and on PRs to main.
+# The CD pipeline (cd-pipeline.yml) only runs after this workflow succeeds on main.
 # =============================================================================
 name: "CI Pipeline - Build and Test"
 
 on:
   push:
-    branches:
-      - develop
-      - 'feature/**'
-      - 'hotfix/**'
+    branches: [main, "feature/**", "hotfix/**"]
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main]
 
-# Cancel previous runs if new commit pushed (saves CI minutes)
 concurrency:
-  group: "ci-${{ github.ref }}"
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  # =========================================================================
-  # JOB 1: Code Quality & Linting
-  # WHY: Catches syntax errors, style violations BEFORE review
-  # =========================================================================
   lint:
-    name: "Lint and Static Analysis"
+    name: "Lint (go vet)"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: src/productcatalogservice/go.mod
+      - run: cd src/productcatalogservice && go vet .
 
-      - name: Run go vet (static analysis)
-        run: |
-          cd src/productcatalogservice
-          go vet .
-
-  # =========================================================================
-  # JOB 2: Unit Tests
-  # WHY: Verifies business logic works correctly
-  # =========================================================================
   test:
-    name: "Unit Tests"
+    name: "Unit tests — productcatalogservice"
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: src/productcatalogservice/go.mod
-
-      - name: Run tests with coverage
-        run: |
-          cd src/productcatalogservice
-          go test -v -coverprofile=coverage.out .
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+      - run: cd src/productcatalogservice && go test -v -coverprofile=coverage.out .
+      - uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-productcatalogservice
           path: src/productcatalogservice/coverage.out
 
-  # =========================================================================
-  # JOB 2b: Reviews Service — race-detector unit tests
-  # WHY: The store is concurrency-critical; -race catches data races that plain
-  #      tests cannot. Runs in its own job because it has its own Go module.
-  # =========================================================================
   test-reviewsservice:
-    name: "Reviews Service Tests (-race)"
+    name: "Reviews service — vet + race tests (Postgres)"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -88,114 +54,98 @@ jobs:
           POSTGRES_DB: reviews
           POSTGRES_USER: reviews
           POSTGRES_PASSWORD: reviews
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U reviews"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: src/reviewsservice/go.mod
-
-      - name: go vet + race tests (incl. PostgreSQL integration)
-        env:
+      - env:
           TEST_DATABASE_URL: postgres://reviews:reviews@localhost:5432/reviews?sslmode=disable
         run: |
           cd src/reviewsservice
           go vet ./...
           go test -race -v -coverprofile=coverage.out ./...
 
-  # =========================================================================
-  # JOB 3: Build Docker Images
-  # WHY: Ensures the container builds successfully before merging
-  # =========================================================================
-  build:
-    name: "Build Docker Images"
+  build-scan:
+    name: "Build + Trivy gate + SBOM — ${{ matrix.service.name }}"
     runs-on: ubuntu-latest
     needs: [test, test-reviewsservice]
     strategy:
+      fail-fast: false
       matrix:
         service:
-          - name: frontend
-            context: src/frontend
-          - name: productcatalogservice
-            context: src/productcatalogservice
-          - name: reviewsservice
-            context: src/reviewsservice
+          - { name: frontend,              context: src/frontend }
+          - { name: productcatalogservice, context: src/productcatalogservice }
+          - { name: reviewsservice,        context: src/reviewsservice }
+    env:
+      IMAGE: vanta-${{ matrix.service.name }}:${{ github.sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: "Build ${{ matrix.service.name }}"
-        uses: docker/build-push-action@v5
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (local image, not pushed)
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.service.context }}
+          load: true
           push: false
-          tags: "boutique-${{ matrix.service.name }}:${{ github.sha }}"
+          tags: ${{ env.IMAGE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # =========================================================================
-  # JOB 4: Security Scan
-  # WHY: Detects vulnerabilities BEFORE deployment
-  # =========================================================================
-  security-scan:
-    name: "Security Vulnerability Scan"
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+      # GATE: any fixable CRITICAL vulnerability fails the build — scan what ships.
+      - name: Trivy — CRITICAL (blocking)
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          scan-type: 'fs'
-          scan-ref: 'src/productcatalogservice'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
-          format: 'table'
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+      - name: Trivy — HIGH (report only)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}
+          severity: HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
 
-  # =========================================================================
-  # JOB 5: Validate Kubernetes Manifests
-  # WHY: Catches YAML errors before they break the cluster
-  # =========================================================================
+      - name: SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}
+          format: cyclonedx-json
+          output-file: sbom-${{ matrix.service.name }}.cdx.json
+          artifact-name: sbom-${{ matrix.service.name }}
+          upload-artifact: true
+
   validate-manifests:
-    name: "Validate K8s Manifests"
+    name: "Validate Kustomize + Helm"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Validate YAML syntax
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: kubectl kustomize (root, overlays, tests)
         run: |
-          echo "Validating Kubernetes manifest YAML syntax..."
-          for manifest in kubernetes-manifests/*.yaml; do
-            filename=$(basename "$manifest")
-            if [ "$filename" = "kustomization.yaml" ]; then
-              echo "Skipping $filename (Kustomize file)"
-              continue
-            fi
-            # Check YAML is parseable
-            python3 -c "
-          import yaml, sys
-          try:
-              with open('$manifest') as f:
-                  list(yaml.safe_load_all(f))
-              print(f'  PASS: $manifest')
-          except Exception as e:
-              print(f'  FAIL: $manifest - {e}')
-              sys.exit(1)
-          "
+          set -euo pipefail
+          for d in kustomize kustomize/overlays/* kustomize/tests/*/; do
+            echo "== $d"; kubectl kustomize "$d" > /dev/null
           done
-          echo "All manifests have valid YAML syntax!"
+      - name: helm lint + template
+        run: |
+          set -euo pipefail
+          helm lint helm-chart
+          helm template vanta helm-chart > /dev/null
+          helm template vanta helm-chart \
+            --set networkPolicies.create=true \
+            --set reviewsService.database.enabled=true \
+            --set telemetry.collectorAddr=otel-collector:4317 \
+            --set telemetry.tracing=true > /dev/null

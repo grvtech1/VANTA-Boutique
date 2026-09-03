@@ -1,0 +1,30 @@
+# dev: intended for a local kind cluster that has ArgoCD installed. Auto-syncs and self-heals.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vanta-boutique-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/grvtech1/VANTA-Boutique.git
+    targetRevision: main
+    path: kustomize/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

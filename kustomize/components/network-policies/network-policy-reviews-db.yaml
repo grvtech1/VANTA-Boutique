@@ -1,0 +1,21 @@
+# Postgres for reviews: only reviewsservice may talk to it, on 5432. No egress needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reviews-db
+spec:
+  podSelector:
+    matchLabels:
+      app: reviews-db
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: reviewsservice
+      ports:
+        - port: 5432
+          protocol: TCP
+  egress: []

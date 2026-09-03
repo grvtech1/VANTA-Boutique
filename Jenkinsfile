@@ -18,7 +18,10 @@ pipeline {
 
     environment {
         REGISTRY  = 'docker.io/grvp1'
-        IMAGE_TAG = "${env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'local'}"
+        // Full git SHA — identical tag scheme to the GitHub Actions CD pipeline, so
+        // scripts/bump-image-tags.sh / promote.sh work with images from either CI.
+        IMAGE_TAG = "${env.GIT_COMMIT ?: 'local'}"
+        SERVICES  = 'reviewsservice frontend productcatalogservice'
         // Add a 'dockerhub' username/password credential in Jenkins for the push stage.
     }
 
@@ -48,7 +51,7 @@ pipeline {
         stage('Build Images') {
             steps {
                 script {
-                    ['reviewsservice', 'frontend'].each { svc ->
+                    env.SERVICES.split(' ').each { svc ->
                         sh "docker build -t ${REGISTRY}/${svc}:${IMAGE_TAG} src/${svc}"
                     }
                 }
@@ -59,9 +62,12 @@ pipeline {
             steps {
                 sh '''
                     set -e
-                    for svc in reviewsservice frontend; do
-                      echo "--- Trivy scan: ${svc} ---"
-                      trivy image --severity HIGH,CRITICAL --no-progress \
+                    for svc in $SERVICES; do
+                      echo "--- Trivy gate (CRITICAL, fixable): ${svc} ---"
+                      trivy image --severity CRITICAL --ignore-unfixed --no-progress \
+                            --exit-code 1 "${REGISTRY}/${svc}:${IMAGE_TAG}"
+                      echo "--- Trivy report (HIGH): ${svc} ---"
+                      trivy image --severity HIGH --ignore-unfixed --no-progress \
                             --exit-code 0 "${REGISTRY}/${svc}:${IMAGE_TAG}"
                     done
                 '''
@@ -78,12 +84,12 @@ pipeline {
                     sh '''
                         set -e
                         echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-                        for svc in reviewsservice frontend; do
+                        # Immutable SHA tags only — no :latest (see docs/DECISIONS.md #2).
+                        for svc in $SERVICES; do
                           docker push "${REGISTRY}/${svc}:${IMAGE_TAG}"
-                          docker tag  "${REGISTRY}/${svc}:${IMAGE_TAG}" "${REGISTRY}/${svc}:latest"
-                          docker push "${REGISTRY}/${svc}:latest"
                         done
                         docker logout
+                        echo "GitOps: scripts/bump-image-tags.sh kustomize/overlays/staging/kustomization.yaml ${IMAGE_TAG}"
                     '''
                 }
             }

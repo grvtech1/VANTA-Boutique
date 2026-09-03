@@ -1,9 +1,25 @@
+# Local kind cluster for VANTA Boutique.
+#   kind create cluster --config kind-local.yaml
+# Port map: NodePort 30080 → http://localhost:8888 (frontend-external in overlays/dev)
+#           80/443 → nginx Ingress when installed (scripts/install-ingress-nginx.sh --provider kind)
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: boutique
 nodes:
-- role: control-plane
-  extraPortMappings:
-  - containerPort: 30080
-    hostPort: 8888
-    protocol: TCP
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8888
+        protocol: TCP
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP

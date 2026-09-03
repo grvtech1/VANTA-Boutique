@@ -1,15 +1,17 @@
+VANTA Boutique deployed to namespace {{ .Release.Namespace }}.
+
+Watch it come up:
+    kubectl get pods -n {{ .Release.Namespace }} -w
+
 {{- if and .Values.frontend.create .Values.frontend.externalService }}
-Note: It may take a few minutes for the LoadBalancer IP to be available.
 
-Watch the status of the frontend IP address with:
-    kubectl get --namespace {{ .Release.Namespace }} svc -w {{ .Values.frontend.name }}-external
-
-Get the external IP address of the frontend:
-    export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ .Values.frontend.name }}-external --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
-    echo http://$SERVICE_IP
+Frontend (LoadBalancer — may take a minute to get an address):
+    kubectl get svc -n {{ .Release.Namespace }} -w {{ .Values.frontend.name }}-external
 {{- end }}
-{{- if .Values.frontend.virtualService.create }}
-Get the external IP address of the ingress gateway:
-    export SERVICE_IP=$(kubectl get svc --namespace {{ .Values.frontend.virtualService.gateway.namespace }} {{ .Values.frontend.virtualService.gateway.name }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
-    echo http://$SERVICE_IP
+
+Or port-forward:
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ .Values.frontend.name }} 8080:80   → http://localhost:8080
+
+{{- if .Values.reviewsService.create }}
+Reviews service: {{ .Values.reviewsService.replicas }} replica(s), store = {{ ternary "PostgreSQL" "in-memory" .Values.reviewsService.database.enabled }}.
 {{- end }}

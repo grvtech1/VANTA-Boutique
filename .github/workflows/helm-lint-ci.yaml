@@ -1,0 +1,25 @@
+name: helm-lint-ci
+on:
+  push:
+    branches: [main]
+    paths: ["helm-chart/**", ".github/workflows/helm-lint-ci.yaml"]
+  pull_request:
+    paths: ["helm-chart/**", ".github/workflows/helm-lint-ci.yaml"]
+permissions:
+  contents: read
+jobs:
+  helm-lint-ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: |
+          set -euo pipefail
+          helm lint helm-chart
+          helm template vanta helm-chart > /dev/null
+          helm template vanta helm-chart \
+            --set networkPolicies.create=true \
+            --set reviewsService.database.enabled=true \
+            --set reviewsService.replicas=2 \
+            --set telemetry.collectorAddr=otel-collector:4317 \
+            --set telemetry.tracing=true > /dev/null

@@ -1,15 +1,5 @@
-# =============================================================================
-# NGINX Ingress — Production Traffic Routing
-# =============================================================================
-# WHY: Raw NodePort exposes random high ports (30080). Ingress provides:
-#      - TLS termination (HTTPS)
-#      - Path-based routing
-#      - Rate limiting and request throttling
-#      - Centralized access logging
-#
-# PREREQ: Install NGINX Ingress Controller first:
-#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/baremetal/deploy.yaml
-# =============================================================================
+# nginx Ingress in front of the frontend. Host defaults to vanta.local (kind); overlays patch
+# it (see overlays/prod). Rate limits + timeouts are the first line of defence against abuse.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -18,17 +8,20 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "8m"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
     nginx.ingress.kubernetes.io/limit-rps: "50"
     nginx.ingress.kubernetes.io/limit-connections: "20"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 80
+    - host: vanta.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
