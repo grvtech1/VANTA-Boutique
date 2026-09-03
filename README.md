@@ -46,8 +46,10 @@ pipeline that builds, tests, scans, and ships every service.
   keepalive limits, input validation/length caps, DB-connectivity-driven **gRPC health**, a
   `nonroot` distroless image, and a dedicated **NetworkPolicy**.
 - ⚙️ **CI/CD** — GitHub Actions: `go vet`, **race-detector tests** with a Postgres service
-  container, multi-service Docker builds, Trivy vulnerability scan, and an honest deploy gate.
-  The same pipeline is also provided as a **Jenkins declarative pipeline** ([`Jenkinsfile`](/Jenkinsfile)).
+  container, multi-service Docker builds, a **Trivy CRITICAL gate** (scan what ships), a
+  **CycloneDX SBOM** per image, and Kustomize/Helm render validation. On `main`, CD pushes
+  **immutable git-SHA images** and **commits the tag into the staging overlay** — pull-based
+  GitOps, CI never touches the cluster. Mirrored as a **Jenkins declarative pipeline** ([`Jenkinsfile`](/Jenkinsfile)).
 - ☸️ **Self-managed platform on AWS** — the whole stack is reproducible from code:
   **Terraform** provisions a VPC + 3 EC2 nodes, **Ansible** + `kubeadm` form the cluster,
   **ArgoCD** delivers via pull-based GitOps, and **Prometheus/Grafana/Loki** provide
@@ -112,9 +114,9 @@ flowchart TD
     classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
 ```
 
-> **Telemetry:** services also emit traces/metrics to an optional OpenTelemetry collector
-> (`COLLECTOR_SERVICE_ADDR`), and a Gemini-powered shopping-assistant can be enabled via
-> [Kustomize components](/kustomize). Both are omitted above to keep the request path clear.
+> **Telemetry:** services can emit traces to an optional OpenTelemetry collector
+> (`COLLECTOR_SERVICE_ADDR`, see the `tracing` [Kustomize component](/kustomize)); omitted
+> above to keep the request path clear.
 
 | Service | Language | Description |
 | --- | --- | --- |
@@ -184,21 +186,24 @@ flowchart LR
 
 **Provisioned once** — `terraform apply` (VPC, subnet, IGW, security groups, 3× EC2 with a
 `containerd`+`kubeadm` user-data bootstrap) → `ansible-playbook` (kubeadm `init`/`join` + Calico
-CNI) → `scripts/setup-argocd.sh` (install ArgoCD + register the Applications) → Helm-install the
-monitoring stack from `monitoring/`. **Then the day-to-day loop is automatic:** push → CI tests,
-builds, scans, and commits a new image tag → ArgoCD syncs the cluster → rolling update.
-Full step-by-step in the **[Platform runbook](/docs/PLATFORM.md)**.
+CNI) → `scripts/setup-argocd.sh` (install ArgoCD + register the **app-of-apps** root) → Helm-install
+the monitoring stack from `monitoring/`. **Then the day-to-day loop is automatic:** push → CI tests,
+builds, scans (gate), SBOMs → CD pushes `image:<git-sha>` and commits the tag into **staging** →
+ArgoCD syncs → rolling update. **Prod** is promoted with `scripts/promote.sh <sha>` and a manual
+ArgoCD sync. Full step-by-step in the **[Platform runbook](/docs/PLATFORM.md)**; the *why* behind
+each choice in **[Decisions](/docs/DECISIONS.md)**; incident playbooks in **[Runbooks](/docs/RUNBOOKS.md)**.
 
 | Layer | Tooling | Where |
 | --- | --- | --- |
 | **Infrastructure as Code** | Terraform — VPC, public subnet, IGW, security groups, EIP, TLS keypair, 3× EC2 (1 master + 2 workers) | [`/terraform`](/terraform) |
 | **Configuration** | Ansible — `kubeadm` cluster bootstrap + an audit playbook | [`/ansible`](/ansible) |
-| **Orchestration** | Self-managed **Kubernetes** (`kubeadm` + **Calico** CNI), Kustomize base + `dev`/`staging`/`prod` overlays | [`/scripts`](/scripts) · [`/kustomize`](/kustomize) |
-| **GitOps delivery** | **ArgoCD** — `staging` auto-syncs, `prod` is manual sync with prune + retry/backoff | [`/argocd`](/argocd) |
-| **CI/CD** | **GitHub Actions** + **Jenkins** — test, build, Trivy scan, plus `kustomize-build` and `terraform-validate` gates | [`/.github/workflows`](/.github/workflows) · [`Jenkinsfile`](/Jenkinsfile) |
-| **Observability** | **Prometheus + Grafana + Alertmanager** (with SRE alert rules) and **Loki** for logs | [`/monitoring`](/monitoring) |
-| **Security** | RBAC, Pod Security, **NetworkPolicies**, least-privilege security groups, non-root distroless images | [`/scripts`](/scripts) · [`/kustomize/components/network-policies`](/kustomize/components/network-policies) |
-| **Resilience / SRE** | **HPA**, PodDisruptionBudgets, plus **chaos-engineering** and **failover** lab scripts and health checks | [`/scripts`](/scripts) · [`/kustomize/components/pod-disruption-budgets`](/kustomize/components/pod-disruption-budgets) |
+| **Orchestration** | Self-managed **Kubernetes** (`kubeadm` + **Calico** CNI), Kustomize base + namespaced `dev`/`staging`/`prod` overlays + composable components | [`/scripts`](/scripts) · [`/kustomize`](/kustomize) |
+| **GitOps delivery** | **ArgoCD app-of-apps** — `staging` auto-syncs from CI-committed **git-SHA tags**; `prod` is manual sync (promote → approve), rollback = `git revert` | [`/argocd`](/argocd) · [`scripts/promote.sh`](/scripts/promote.sh) |
+| **CI/CD** | **GitHub Actions** + **Jenkins** — test, build, **Trivy CRITICAL gate**, **SBOM**, Kustomize/Helm render + `terraform-validate` gates; CD holds no cluster credentials | [`/.github/workflows`](/.github/workflows) · [`Jenkinsfile`](/Jenkinsfile) |
+| **Ingress & TLS** | **nginx Ingress** (rate limits, timeouts) + **cert-manager** Let's Encrypt via a Kustomize `tls` component | [`/kustomize/components/ingress`](/kustomize/components/ingress) · [`tls`](/kustomize/components/tls) |
+| **Observability** | **Prometheus + Grafana + Alertmanager** — SRE rules, **availability SLO with multi-window burn-rate alerts**, severity-routed **Slack** notifications, a provisioned dashboard; **Loki** for logs | [`/monitoring`](/monitoring) |
+| **Security** | RBAC, Pod Security, **default-deny NetworkPolicies** (incl. the reviews DB), least-privilege security groups, non-root distroless images, image scan gate, **no secrets in Git** | [`/scripts`](/scripts) · [`/kustomize/components/network-policies`](/kustomize/components/network-policies) |
+| **Resilience / SRE** | **HPA** (frontend, reviews), PodDisruptionBudgets, **Velero** backups, plus **chaos** and **node-failover** drills with written **runbooks** | [`/scripts`](/scripts) · [`/backup`](/backup) · [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md) |
 
 > 💡 **Cost-aware & reproducible:** the AWS footprint runs at roughly **~$1.5/day** and tears
 > down cleanly with `terraform destroy` — state, kubeconfig, and tfvars are git-ignored, never
@@ -210,30 +215,37 @@ The quickest way to see the full store on your machine — a local
 [kind](https://kind.sigs.k8s.io/) cluster, no cloud account required.
 
 ```sh
-# 1. Create a local cluster (maps NodePort 30080 → host 8888)
-kind create cluster --config kind-local.yaml
+# 1. Create a local cluster (maps NodePort 30080 → host 8888; 80/443 for the optional Ingress)
+kind create cluster --config kind-local.yaml            # make kind-up
 
-# 2. Deploy the dev overlay (all 12 services + Redis)
-kubectl apply -k kustomize/overlays/dev
+# 2. Deploy the dev overlay (namespace `boutique`: all 12 services + Redis)
+kubectl apply -k kustomize/overlays/dev                 # make deploy
 
 # 3. Wait for everything to be Ready
-kubectl wait --for=condition=ready pod --all --timeout=300s
+kubectl wait -n boutique --for=condition=ready pod --all --timeout=300s
 
 # 4. Open the store
 #    NodePort:      http://localhost:8888
 #    or port-forward (more robust):
-kubectl port-forward --address 0.0.0.0 svc/frontend-external 8088:80
-#    → http://localhost:8088
+kubectl port-forward -n boutique svc/frontend 8088:80   # → http://localhost:8088
+```
+
+Want the real entry path (nginx Ingress with rate limits, like prod)?
+
+```sh
+scripts/install-ingress-nginx.sh --provider kind        # make ingress
+kubectl apply -k kustomize/overlays/kind-ingress
+echo "127.0.0.1 vanta.local" | sudo tee -a /etc/hosts    # → http://vanta.local
 ```
 
 **Build from source** instead of pulling images, then load into kind:
 
 ```sh
-docker build -t reviewsservice:dev src/reviewsservice
-docker build -t frontend:dev      src/frontend
-kind load docker-image reviewsservice:dev frontend:dev --name boutique
-kubectl set image deployment/reviewsservice server=reviewsservice:dev
-kubectl set image deployment/frontend       server=frontend:dev
+docker build -t docker.io/grvp1/reviewsservice:dev src/reviewsservice
+docker build -t docker.io/grvp1/frontend:dev       src/frontend
+kind load docker-image docker.io/grvp1/reviewsservice:dev docker.io/grvp1/frontend:dev --name boutique
+kubectl set image -n boutique deployment/reviewsservice server=docker.io/grvp1/reviewsservice:dev
+kubectl set image -n boutique deployment/frontend       server=docker.io/grvp1/frontend:dev
 ```
 
 To enable the durable **PostgreSQL** reviews store, add the component to
@@ -244,9 +256,9 @@ components:
   - ../../components/reviews-persistence
 ```
 
-> ☁️ For **GKE**, **AWS EC2 (ArgoCD)**, Terraform, Helm, and Istio options, see
-> [`/kustomize`](/kustomize), [`/terraform`](/terraform), and the
-> [development guide](/docs/development-guide.md).
+> ☁️ For the **AWS / ArgoCD** path, Terraform, Helm, and Istio options, see the
+> [Platform runbook](/docs/PLATFORM.md), [`/kustomize`](/kustomize), [`/terraform`](/terraform),
+> and the [development guide](/docs/development-guide.md).
 
 ## 🧰 Tech stack
 
@@ -255,17 +267,23 @@ components:
 - **Data:** Redis (cart) · PostgreSQL / pgx (reviews)
 - **Packaging:** Multi-stage Docker, `distroless:nonroot`
 - **Infrastructure:** Terraform (AWS VPC + EC2) · Ansible · self-managed Kubernetes (`kubeadm` + Calico)
-- **Orchestration:** Kubernetes · Kustomize (base + `dev`/`staging`/`prod` overlays + components) · Helm
-- **CI/CD & GitOps:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy) · ArgoCD
-- **Observability:** Prometheus · Grafana · Alertmanager · Loki
+- **Orchestration:** Kubernetes · Kustomize (base + namespaced `dev`/`staging`/`prod` overlays + components) · Helm
+- **Ingress & TLS:** nginx Ingress (rate limits) · cert-manager (Let's Encrypt)
+- **CI/CD & GitOps:** GitHub Actions & Jenkins (vet, `-race` tests, Postgres service container, Trivy gate, CycloneDX SBOM) · ArgoCD app-of-apps · git-SHA image tags
+- **Observability:** Prometheus · Grafana · Alertmanager (Slack) · SLO burn-rate alerts · Loki
+- **Resilience:** HPA · PDB · NetworkPolicies · Velero backups · chaos & failover drills
 - **Frontend extras:** schema.org JSON-LD · accessible review components
 
 ## 📚 Documentation
 
 - [**Platform runbook**](/docs/PLATFORM.md) — provision AWS → form the cluster → GitOps → observability, step by step.
-- [Development guide](/docs/development-guide.md) — run and develop locally.
+- [**Runbooks**](/docs/RUNBOOKS.md) — incident playbooks: crash loops, rollback, node failover, DB down, SLO burn, TLS.
+- [**Decisions**](/docs/DECISIONS.md) — the *why* behind GitOps, SHA tags, scan gates, netpol, SLOs, kubeadm.
+- [Development guide](/docs/development-guide.md) — run and develop locally on kind.
+- [CI/CD workflows](/.github/workflows/README.md) · [Kustomize layout](/kustomize/README.md) · [Helm chart](/helm-chart/README.md) · [Monitoring](/monitoring/README.md)
 - [Reviews service](/src/reviewsservice/README.md) — API, storage modes, and configuration.
-- [Adding a new microservice](/docs/adding-new-microservice.md).
+- [Adding a new microservice](/docs/adding-new-microservice.md) — reviewsservice as the worked example.
+- [Learning-phase lab scripts](/scripts/labs/README.md) — the minikube → AWS journey, kept honestly.
 
 ## Credits & license
 

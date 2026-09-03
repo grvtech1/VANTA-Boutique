@@ -24,9 +24,11 @@ Prometheus + Grafana + Alertmanager + Loki ─── scrape / collect ──▶ 
 | --- | --- | --- |
 | Infrastructure | Terraform | [`/terraform`](/terraform) |
 | Cluster bootstrap | Ansible + `kubeadm` | [`/ansible`](/ansible), [`/scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) |
-| Delivery | ArgoCD (GitOps) | [`/argocd`](/argocd), [`/scripts/setup-argocd.sh`](/scripts/setup-argocd.sh) |
-| Observability | Prometheus/Grafana/Loki | [`/monitoring`](/monitoring) |
-| App manifests | Kustomize | [`/kustomize`](/kustomize) |
+| Delivery | ArgoCD app-of-apps (GitOps) + `promote.sh` | [`/argocd`](/argocd), [`/scripts/setup-argocd.sh`](/scripts/setup-argocd.sh), [`/scripts/promote.sh`](/scripts/promote.sh) |
+| Entry | nginx Ingress + cert-manager TLS | [`/kustomize/components/ingress`](/kustomize/components/ingress), [`tls`](/kustomize/components/tls) |
+| Observability | Prometheus/Grafana/Alertmanager/Loki + SLO alerts | [`/monitoring`](/monitoring) |
+| App manifests | Kustomize (namespaced overlays) | [`/kustomize`](/kustomize) |
+| Day-2 | Runbooks, chaos/failover drills, Velero | [`/docs/RUNBOOKS.md`](/docs/RUNBOOKS.md), [`/scripts`](/scripts), [`/backup`](/backup) |
 
 ---
 
@@ -72,58 +74,86 @@ export KUBECONFIG=$PWD/kubeconfig-aws
 kubectl get nodes -o wide     # master + 2 workers, all Ready
 ```
 
-> A scripted, idempotent alternative to the playbook lives in
-> [`scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) (+ `multi-node-setup.sh`).
+> A scripted alternative to the playbook lives in
+> [`scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) (export `MASTER_IP`, `WORKER1_IP`,
+> `WORKER2_IP` from `terraform output` first).
 
-## 3. Install ArgoCD (GitOps engine)
+A fresh kubeadm cluster has **no default StorageClass** — the reviews Postgres PVC would stay
+`Pending`. Install a provisioner once:
 
 ```sh
-../scripts/setup-argocd.sh                 # installs ArgoCD into the argocd namespace
-kubectl apply -f ../argocd/application-staging.yaml   # staging: auto-sync
-kubectl apply -f ../argocd/application-prod.yaml       # prod: manual sync + prune
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
+kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 ```
 
-- **staging** (`kustomize/overlays/staging`) **auto-syncs** on every Git change.
-- **prod** (`kustomize/overlays/prod`) is **manual sync** with prune + retry/backoff — nothing
-  reaches prod without explicit approval in the ArgoCD UI or `argocd app sync`.
-
-From here the app deploys itself: push a change → CI builds/scans/pushes the image and bumps the
-tag in Git → ArgoCD reconciles. **CI never holds cluster credentials.**
-
-## 4. Observability (Prometheus + Grafana + Loki)
+## 3. Install ArgoCD (GitOps engine, app-of-apps)
 
 ```sh
+cd ..
+scripts/setup-argocd.sh        # installs ArgoCD (pinned) + registers argocd/root.yaml
+kubectl -n argocd get applications
+```
+
+The root Application creates the environment Applications from [`argocd/apps/`](/argocd/apps):
+
+| App | Path | Sync | Namespace |
+| --- | --- | --- | --- |
+| `vanta-boutique-staging` | `kustomize/overlays/staging` | **automatic** (prune + self-heal) | `boutique-staging` |
+| `vanta-boutique-prod` | `kustomize/overlays/prod` | **manual** — approve in the UI or `scripts/sync-app.sh vanta-boutique-prod` | `boutique` |
+| `vanta-boutique-dev` | `kustomize/overlays/dev` | automatic (for a kind cluster with ArgoCD) | `boutique` |
+
+From here the app deploys itself: push → CI tests, builds, **scans (CRITICAL gate)**, SBOMs →
+CD pushes `docker.io/grvp1/<svc>:<git-sha>` and **commits that SHA into the staging overlay** →
+ArgoCD reconciles staging. Prod: `scripts/promote.sh <sha>` (or `--from-staging`) commits the
+tag into the prod overlay → ArgoCD shows OutOfSync → a human syncs. **CI never holds cluster
+credentials and never calls the ArgoCD API.**
+
+## 4. Ingress + Observability
+
+Secrets first (never in Git), then the stack — full detail in [`monitoring/README.md`](/monitoring/README.md):
+
+```sh
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n monitoring create secret generic grafana-admin \
+  --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+kubectl -n monitoring create secret generic alertmanager-slack --from-literal=webhook='https://hooks.slack.com/services/...'
+
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
+helm upgrade --install kube-prom prometheus-community/kube-prometheus-stack -n monitoring -f monitoring/prometheus-values.yml
+helm upgrade --install loki grafana/loki-stack -n monitoring -f monitoring/loki-values.yml
+kubectl apply -f monitoring/grafana/vanta-overview-dashboard.yaml
 
-helm upgrade --install kube-prom prometheus-community/kube-prometheus-stack \
-  -n monitoring --create-namespace -f monitoring/prometheus-values.yml
-helm upgrade --install loki grafana/loki-stack \
-  -n monitoring -f monitoring/loki-values.yml
+scripts/install-ingress-nginx.sh --provider helm     # NodePort 30080/30443 + metrics → SLO rules
+helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true
 ```
 
-`prometheus-values.yml` pins the stack to the master node, enables **Alertmanager**, and ships
-**SRE alert rules** (pod crash-loop, node health, deployment replica mismatch). Reach Grafana:
+`prometheus-values.yml` pins the stack to the master node, routes alerts by severity to
+**Slack**, and ships **SRE rules** (pod/node/deployment health, HPA ceiling, reviews DB) plus an
+**availability SLO (99.5%) with multi-window burn-rate alerts** computed from ingress-nginx
+metrics. Grafana: `kubectl -n monitoring port-forward svc/kube-prom-grafana 3000:80`.
+
+## 5. Reliability & security hardening
+
+`kustomize/overlays/prod` composes it all: **default-deny NetworkPolicies**, **PDBs**,
+**Postgres-backed reviews** (2 replicas + HPA), **nginx Ingress** with rate limits and
+**cert-manager TLS** (edit the host in the overlay patch and the e-mail in
+`components/tls/cluster-issuer.yaml`). Optional extras:
 
 ```sh
-kubectl -n monitoring port-forward svc/kube-prom-grafana 3000:80   # http://localhost:3000
+scripts/setup-rbac.sh            # least-privilege Roles/RoleBindings example
+scripts/setup-pod-security.sh    # Pod Security standards
+scripts/setup-hpa.sh             # metrics-server (HPAs need it)
+VELERO_BUCKET=<bucket> backup/velero-install.sh   # 6-hourly namespace backups to S3
 ```
 
-## 5. Reliability & security hardening (optional SRE scripts)
+Practice failure (in **staging**, never prod) — and write down what you learned in
+[`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md):
 
 ```sh
-../scripts/setup-rbac.sh            # least-privilege Roles/RoleBindings
-../scripts/setup-pod-security.sh    # Pod Security standards
-../scripts/setup-hpa.sh             # Horizontal Pod Autoscalers
-kubectl apply -k kustomize/overlays/prod   # includes NetworkPolicies + PodDisruptionBudgets
-```
-
-Practice failure (in **staging**, never prod):
-
-```sh
-../scripts/chaos-engineering.sh     # kill random pods, verify self-healing
-../scripts/failover-lab.sh          # drain a node, watch rescheduling
+NAMESPACE=boutique-staging scripts/chaos-engineering.sh   # kill pods, verify self-healing
+NAMESPACE=boutique-staging scripts/failover-lab.sh        # cordon+drain a worker, watch rescheduling, curl the store
 ```
 
 ---
@@ -131,10 +161,14 @@ Practice failure (in **staging**, never prod):
 ## 6. Day-2 operations
 
 ```sh
-../scripts/health-check.sh          # cluster + app health summary
-kubectl rollout undo deployment/frontend -n boutique   # emergency rollback
-git revert <bad-commit> && git push                    # GitOps rollback (preferred)
+scripts/health-check.sh                                  # cluster + app health summary
+scripts/promote.sh --from-staging && git push            # promote what staging runs → prod (then sync)
+scripts/sync-app.sh vanta-boutique-prod                  # approve the prod sync
+git revert <promotion-commit> && git push                # GitOps rollback (preferred; sync prod again)
+kubectl rollout undo deployment/frontend -n boutique     # emergency only — then do the git revert
 ```
+
+Incident playbooks (crash loops, node failover, DB down, SLO burn, TLS): [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md).
 
 ## 7. Teardown (stop the bill)
 
@@ -151,20 +185,20 @@ No cloud account, no cost — the full app on a local
 ```sh
 kind create cluster --config kind-local.yaml
 kubectl apply -k kustomize/overlays/dev
-kubectl wait --for=condition=ready pod --all --timeout=300s
-kubectl port-forward --address 0.0.0.0 svc/frontend-external 8088:80   # http://localhost:8088
+kubectl wait -n boutique --for=condition=ready pod --all --timeout=300s
+kubectl port-forward -n boutique svc/frontend 8088:80     # http://localhost:8088  (or NodePort http://localhost:8888)
 ```
 
 ---
 
 ### One-time vs every-commit
 
-| One-time setup | Every commit (automatic) |
-| --- | --- |
-| `terraform apply` · `ansible-playbook` | `git push` |
-| install Calico CNI | CI: test → build → Trivy scan → push image |
-| `setup-argocd.sh` + Applications | CI commits new image tag to Git |
-| install monitoring stack | ArgoCD syncs → rolling update |
+| One-time setup | Every commit (automatic) | Release to prod (deliberate) |
+| --- | --- | --- |
+| `terraform apply` · `ansible-playbook` | `git push` | `scripts/promote.sh <sha>` |
+| StorageClass · ingress-nginx · cert-manager | CI: test → build → **Trivy gate** → SBOM → validate manifests | `git push` |
+| `setup-argocd.sh` (root app-of-apps) | CD: push `image:<sha>` → **commit SHA into staging** | ArgoCD prod → OutOfSync |
+| monitoring stack + secrets | ArgoCD syncs staging → rolling update | human approves the sync |
 
 New to this? The infra steps are **rare and deliberate**; the CI/CD loop is **constant and
 hands-off**. Don't confuse the two.
