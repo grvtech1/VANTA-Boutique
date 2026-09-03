@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: "Go modules to bump to @latest (space-separated)"
+        description: "module@min-version entries (space-separated); module@latest to force newest"
         required: false
-        default: "golang.org/x/crypto google.golang.org/grpc"
+        default: "golang.org/x/crypto@v0.55.0 google.golang.org/grpc@v1.79.3"
 
 permissions:
   contents: write
