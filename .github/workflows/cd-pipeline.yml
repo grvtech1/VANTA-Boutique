@@ -77,7 +77,7 @@ jobs:
 
   notify:
     needs: promote-staging
-    if: always()
+    if: ${{ always() && needs.promote-staging.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
       - run: |

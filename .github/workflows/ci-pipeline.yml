@@ -100,7 +100,7 @@ jobs:
 
       # GATE: any fixable CRITICAL vulnerability fails the build — scan what ships.
       - name: Trivy — CRITICAL (blocking)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE }}
@@ -109,7 +109,7 @@ jobs:
           exit-code: "1"
           format: table
       - name: Trivy — HIGH (report only)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE }}
