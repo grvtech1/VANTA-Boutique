@@ -14,29 +14,29 @@ components:
 
 images:
   - name: docker.io/grvp1/adservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/cartservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/checkoutservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/currencyservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/emailservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/frontend
-    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/loadgenerator
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/paymentservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/productcatalogservice
-    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/recommendationservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/reviewsservice
-    newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
+    newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/shippingservice
-    newTag: latest
+    newTag: 4588adafb11d303d648a80098b75c78656964416
 
 replicas:
   - name: adservice
