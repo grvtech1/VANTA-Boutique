@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version-file: src/frontend/go.mod
+          go-version: "1.26"   # same toolchain as the Dockerfile builder
       - name: Bump + tidy + build/vet
         env:
           MODULES: ${{ inputs.modules }}

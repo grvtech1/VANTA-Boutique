@@ -31,7 +31,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: src/${{ matrix.service }}/go.mod
+          # go.mod says `go 1.25.0` + `toolchain go1.26.1`; setup-go only honours the `go` line
+          # and the 1.25 tool + 1.26 toolchain mix breaks -coverprofile ("version does not
+          # match go tool version"). Pin the same major as the Dockerfile builder (golang:1.26).
+          go-version: "1.26"
       # -copylocks=false: upstream money/ passes pb.Money by value; protobuf now embeds a
       # mutex in MessageState, which trips the copylocks check without being a real bug.
       - run: |
@@ -63,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: src/reviewsservice/go.mod
+          go-version: "1.26"   # same toolchain as the Dockerfile builder
       - env:
           TEST_DATABASE_URL: postgres://reviews:reviews@localhost:5432/reviews?sslmode=disable
         run: |
