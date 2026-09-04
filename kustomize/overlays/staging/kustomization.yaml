@@ -1,5 +1,6 @@
 # staging overlay — auto-synced by ArgoCD. Image tags below are IMMUTABLE git SHAs written by
-# the CD pipeline (scripts/bump-image-tags.sh). `latest` appears only until the first CD run.
+# the CD pipeline (scripts/bump-image-tags.sh) for all twelve services. `latest` appears only
+# until the first CD run after a service starts being built here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: boutique-staging
@@ -12,15 +13,30 @@ components:
   - ../../components/reviews-persistence   # durable Postgres store → reviewsservice can run 2 replicas
 
 images:
-  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
-    newName: docker.io/grvp1/frontend
+  - name: docker.io/grvp1/adservice
+    newTag: latest
+  - name: docker.io/grvp1/cartservice
+    newTag: latest
+  - name: docker.io/grvp1/checkoutservice
+    newTag: latest
+  - name: docker.io/grvp1/currencyservice
+    newTag: latest
+  - name: docker.io/grvp1/emailservice
+    newTag: latest
+  - name: docker.io/grvp1/frontend
     newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
-  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
-    newName: docker.io/grvp1/productcatalogservice
+  - name: docker.io/grvp1/loadgenerator
+    newTag: latest
+  - name: docker.io/grvp1/paymentservice
+    newTag: latest
+  - name: docker.io/grvp1/productcatalogservice
     newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
+  - name: docker.io/grvp1/recommendationservice
+    newTag: latest
   - name: docker.io/grvp1/reviewsservice
-    newName: docker.io/grvp1/reviewsservice
     newTag: 4ff50002a8ba3f1dad895f49bff48e707893cba8
+  - name: docker.io/grvp1/shippingservice
+    newTag: latest
 
 replicas:
   - name: adservice

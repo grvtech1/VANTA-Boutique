@@ -21,7 +21,6 @@ import (
 	"html/template"
 	"io"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,9 +31,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
-	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
-	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/validator"
+	pb "github.com/grvtech1/VANTA-Boutique/src/frontend/genproto"
+	"github.com/grvtech1/VANTA-Boutique/src/frontend/money"
+	"github.com/grvtech1/VANTA-Boutique/src/frontend/validator"
 )
 
 type platformDetails struct {
@@ -66,7 +65,7 @@ var (
 	plat platformDetails
 )
 
-var validEnvs = []string{"local", "gcp", "azure", "aws", "onprem", "alibaba"}
+var validEnvs = []string{"local", "azure", "aws", "onprem", "alibaba"}
 
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
@@ -101,18 +100,12 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		ps[i] = productView{p, price}
 	}
 
-	// Set ENV_PLATFORM (default to local if not set; use env var if set; otherwise detect GCP, which overrides env)_
+	// ENV_PLATFORM selects the UI banner (local, aws, azure, onprem, alibaba); defaults to local.
 	var env = os.Getenv("ENV_PLATFORM")
 	// Only override from env variable if set + valid env
 	if env == "" || stringinSlice(validEnvs, env) == false {
 		fmt.Println("env platform is either empty or invalid")
 		env = "local"
-	}
-	// Autodetect GCP
-	addrs, err := net.LookupHost("metadata.google.internal.")
-	if err == nil && len(addrs) >= 0 {
-		log.Debugf("Detected Google metadata server: %v, setting ENV_PLATFORM to GCP.", addrs)
-		env = "gcp"
 	}
 
 	log.Debugf("ENV_PLATFORM is: %s", env)
@@ -141,9 +134,6 @@ func (plat *platformDetails) setPlatformDetails(env string) {
 	} else if env == "azure" {
 		plat.provider = "Azure"
 		plat.css = "azure-platform"
-	} else if env == "gcp" {
-		plat.provider = "Google Cloud"
-		plat.css = "gcp-platform"
 	} else if env == "alibaba" {
 		plat.provider = "Alibaba Cloud"
 		plat.css = "alibaba-platform"
@@ -203,7 +193,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 	}{p, price}
 
 	// Fetch packaging info (weight/dimensions) of the product
-	// The packaging service is an optional microservice you can run as part of a Google Cloud demo.
+	// The packaging service is an optional add-on microservice (not deployed by default).
 	var packagingInfo *PackagingInfo = nil
 	if isPackagingServiceConfigured() {
 		packagingInfo, err = httpGetPackagingInfo(id)

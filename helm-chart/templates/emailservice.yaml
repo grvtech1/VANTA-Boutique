@@ -85,10 +85,6 @@ spec:
         - name: ENABLE_TRACING
           value: "1"
         {{- end }}
-        {{- if not .Values.telemetry.profiler }}
-        - name: DISABLE_PROFILER
-          value: "1"
-        {{- end }}
         readinessProbe:
           periodSeconds: 5
           grpc:

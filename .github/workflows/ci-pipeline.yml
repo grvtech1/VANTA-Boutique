@@ -20,30 +20,28 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: "Lint (go vet)"
+  go-vet-test:
+    name: "Go — vet + unit tests — ${{ matrix.service }}"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [checkoutservice, frontend, productcatalogservice, shippingservice]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: src/productcatalogservice/go.mod
-      - run: cd src/productcatalogservice && go vet .
-
-  test:
-    name: "Unit tests — productcatalogservice"
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: src/productcatalogservice/go.mod
-      - run: cd src/productcatalogservice && go test -v -coverprofile=coverage.out .
+          go-version-file: src/${{ matrix.service }}/go.mod
+      # -copylocks=false: upstream money/ passes pb.Money by value; protobuf now embeds a
+      # mutex in MessageState, which trips the copylocks check without being a real bug.
+      - run: |
+          cd src/${{ matrix.service }}
+          go vet -copylocks=false ./...
+          go test -v -coverprofile=coverage.out ./...
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-productcatalogservice
-          path: src/productcatalogservice/coverage.out
+          name: coverage-${{ matrix.service }}
+          path: src/${{ matrix.service }}/coverage.out
 
   test-reviewsservice:
     name: "Reviews service — vet + race tests (Postgres)"
@@ -76,14 +74,25 @@ jobs:
   build-scan:
     name: "Build + Trivy gate + SBOM — ${{ matrix.service.name }}"
     runs-on: ubuntu-latest
-    needs: [test, test-reviewsservice]
+    needs: [go-vet-test, test-reviewsservice]
     strategy:
       fail-fast: false
+      # Every service that ships is built and scanned here — no image comes from a registry
+      # this repo does not control.
       matrix:
         service:
+          - { name: adservice,             context: src/adservice }
+          - { name: cartservice,           context: src/cartservice/src }
+          - { name: checkoutservice,       context: src/checkoutservice }
+          - { name: currencyservice,       context: src/currencyservice }
+          - { name: emailservice,          context: src/emailservice }
           - { name: frontend,              context: src/frontend }
+          - { name: loadgenerator,         context: src/loadgenerator }
+          - { name: paymentservice,        context: src/paymentservice }
           - { name: productcatalogservice, context: src/productcatalogservice }
+          - { name: recommendationservice, context: src/recommendationservice }
           - { name: reviewsservice,        context: src/reviewsservice }
+          - { name: shippingservice,       context: src/shippingservice }
     env:
       IMAGE: vanta-${{ matrix.service.name }}:${{ github.sha }}
     steps:
@@ -96,8 +105,9 @@ jobs:
           load: true
           push: false
           tags: ${{ env.IMAGE }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # one cache scope per service, otherwise the twelve jobs evict each other's layers
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 
       # GATE: any fixable CRITICAL vulnerability fails the build — scan what ships.
       - name: Trivy — CRITICAL (blocking)

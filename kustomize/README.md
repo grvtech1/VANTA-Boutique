@@ -17,7 +17,6 @@ kustomize/
 │   ├── redis-persistence/     PVC-backed Redis cart
 │   ├── service-mesh-istio/    Istio gateway variant
 │   ├── tracing/               Jaeger + OpenTelemetry collector
-│   ├── container-images-*/    swap registry / tag suffix for every image
 │   ├── custom-base-url/, non-public-frontend/, single-shared-session/, without-loadgenerator/
 └── tests/        render combinations checked in CI
 ```
@@ -31,9 +30,9 @@ kubectl kustomize kustomize/overlays/prod > /tmp/prod.yaml   # what ArgoCD would
 
 ## Images
 
-Only the services this repo rebuilds (`frontend`, `productcatalogservice`, `reviewsservice`)
-point at `docker.io/grvp1`. Everything else pulls the unmodified upstream image — we do not
-rebuild what we did not change. Tags:
+All twelve services point at `docker.io/grvp1/<svc>` — every image that runs is built, scanned
+and pushed by this repo's CI (no upstream or cloud-provider registry at runtime). Only Redis is
+a Docker Hub library image. Tags:
 
 | Overlay | Tag policy |
 | --- | --- |

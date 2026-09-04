@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice/genproto"
+	pb "github.com/grvtech1/VANTA-Boutique/src/reviewsservice/genproto"
 )
 
 // pgStore is a durable, shared PostgreSQL-backed Store. Because state lives in

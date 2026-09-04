@@ -57,7 +57,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: gcr.io/google-samples/microservices-demo/currencyservice:v0.10.1
+        image: docker.io/grvp1/currencyservice:latest
         imagePullPolicy: Always
         ports:
         - name: grpc
@@ -120,7 +120,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: gcr.io/google-samples/microservices-demo/paymentservice:v0.10.1
+        image: docker.io/grvp1/paymentservice:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 50051

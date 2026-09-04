@@ -35,7 +35,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice/genproto"
+	pb "github.com/grvtech1/VANTA-Boutique/src/reviewsservice/genproto"
 )
 
 const defaultPort = "50051"

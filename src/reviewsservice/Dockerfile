@@ -24,8 +24,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-ARG SKAFFOLD_GO_GCFLAGS
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-s -w" -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o /go/bin/reviewsservice .
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-s -w" -o /go/bin/reviewsservice .
 
 FROM gcr.io/distroless/static:nonroot
 

@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 MODULES="${MODULES:-golang.org/x/crypto@v0.55.0 google.golang.org/grpc@v1.79.3}"
-SERVICES="${SERVICES:-frontend productcatalogservice reviewsservice}"
+SERVICES="${SERVICES:-checkoutservice frontend productcatalogservice reviewsservice shippingservice}"
 newest() { printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1; }
 
 for svc in $SERVICES; do

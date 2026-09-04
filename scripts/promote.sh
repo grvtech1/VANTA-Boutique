@@ -11,7 +11,7 @@ staging=kustomize/overlays/staging/kustomization.yaml
 prod=kustomize/overlays/prod/kustomization.yaml
 
 if [ "${1:-}" = "--from-staging" ]; then
-  sha=$(grep -A2 'newName: docker.io/grvp1/frontend' "$staging" | awk '/newTag:/ {print $2}')
+  sha=$(grep -A1 -E '^s*-?s*name: docker.io/grvp1/frontends*$' "$staging" | awk '/newTag:/ {print $2}')
 else
   sha="${1:?git sha (or --from-staging)}"
 fi

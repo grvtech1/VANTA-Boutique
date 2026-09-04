@@ -9,15 +9,19 @@ file="${1:?kustomization.yaml path}"
 tag="${2:?image tag (git sha)}"
 shift 2
 services=("$@")
-[ ${#services[@]} -eq 0 ] && services=(frontend productcatalogservice reviewsservice)
+[ ${#services[@]} -eq 0 ] && services=(
+  adservice cartservice checkoutservice currencyservice emailservice frontend loadgenerator
+  paymentservice productcatalogservice recommendationservice reviewsservice shippingservice
+)
 
 [ -f "$file" ] || { echo "no such file: $file" >&2; exit 1; }
 
 for svc in "${services[@]}"; do
-  # Within the image block whose newName is docker.io/grvp1/<svc>, replace the newTag line.
-  sed -i -E "/^[[:space:]]*newName:[[:space:]]*docker\.io\/grvp1\/${svc}[[:space:]]*$/,/newTag:/ s|(newTag:[[:space:]]*).*|\1${tag}|" "$file"
-  grep -qE "newName:[[:space:]]*docker\.io/grvp1/${svc}" "$file" || echo "warn: ${svc} block not found in ${file}" >&2
+  # Within the image block for docker.io/grvp1/<svc> (matched on `name:` or `newName:`),
+  # replace the newTag line.
+  sed -i -E "/^[[:space:]]*-?[[:space:]]*(newName|name):[[:space:]]*docker\.io\/grvp1\/${svc}[[:space:]]*$/,/newTag:/ s|(newTag:[[:space:]]*).*|\1${tag}|" "$file"
+  grep -qE "(newName|name):[[:space:]]*docker\.io/grvp1/${svc}[[:space:]]*$" "$file" || echo "warn: ${svc} block not found in ${file}" >&2
 done
 
 echo "== ${file} =="
-grep -nE "newName:|newTag:" "$file"
+grep -nE "name:|newTag:" "$file"

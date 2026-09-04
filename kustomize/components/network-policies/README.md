@@ -1,12 +1,13 @@
-# Secure Online Boutique with Network Policies
+# Secure VANTA Boutique with Network Policies
 
 You can use [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) enforcement to control the communication between your cluster's Pods and Services.
 
-To use `NetworkPolicies` in Google Kubernetes Engine (GKE), you will need a GKE cluster with network policy enforcement enabled, the recommended approach is to use [GKE Dataplane V2](https://cloud.google.com/kubernetes-engine/docs/how-to/dataplane-v2).
+`NetworkPolicies` are only enforced when the CNI supports them. The kubeadm cluster built by
+[`/ansible`](/ansible) uses **Calico**, so they are enforced there out of the box. On a local
+cluster such as [minikube](https://minikube.sigs.k8s.io/docs/start/) or kind, install a policy-capable CNI
+(e.g. `minikube start --cni=calico`); the default [Kindnet](https://github.com/aojea/kindnet) CNI does not enforce them.
 
-To use `NetworkPolicies` on a local cluster such as [minikube](https://minikube.sigs.k8s.io/docs/start/), you will need to use an alternative CNI that supports `NetworkPolicies` like [Calico](https://projectcalico.docs.tigera.io/getting-started/kubernetes/minikube). To run a minikube cluster with Calico, run `minikube start --cni=calico`. By design, the minikube default CNI [Kindnet](https://github.com/aojea/kindnet) does not support it.  
-
-## Deploy Online Boutique with `NetworkPolicies` via Kustomize
+## Deploy VANTA Boutique with `NetworkPolicies` via Kustomize
 
 To automate the deployment of Online Boutique integrated with fine granular `NetworkPolicies` (one per `Deployment`), you can leverage the following variation with [Kustomize](../..).
 
@@ -54,11 +55,10 @@ redis-cart              app=redis-cart              2m58s
 shippingservice         app=shippingservice         2m58s
 ```
 
-_Note: `Egress` is wide open in these `NetworkPolicies` . In our case, we do this is on purpose because there are multiple egress destinations to take into consideration like the Kubernetes DNS, Istio control plane (`istiod`), Cloud Trace API, Cloud Profiler API, etc._
+_Note: `Egress` is wide open in these `NetworkPolicies`. That is on purpose: egress destinations include the Kubernetes DNS, an optional Istio control plane (`istiod`) and the OTLP collector when tracing is enabled. Ingress is where the blast radius is contained (see the prod overlay, which adds a default-deny)._
 
 ## Related Resources
 
-- [GKE Dataplane V2 announcement](https://cloud.google.com/blog/products/containers-kubernetes/bringing-ebpf-and-cilium-to-google-kubernetes-engine)
 - [Kubernetes Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [Kubernetes Network Policy Recipes](https://github.com/ahmetb/kubernetes-network-policy-recipes)
-- [Network policy logging](https://cloud.google.com/kubernetes-engine/docs/how-to/network-policy-logging)
+- [Calico network policy](https://docs.tigera.io/calico/latest/network-policy/)

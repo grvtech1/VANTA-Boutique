@@ -18,18 +18,6 @@
 
 const logger = require('./logger')
 
-if (process.env.DISABLE_PROFILER) {
-  logger.info("Profiler disabled.")
-} else {
-  logger.info("Profiler enabled.")
-  require('@google-cloud/profiler').start({
-    serviceContext: {
-      service: 'paymentservice',
-      version: '1.0.0'
-    }
-  });
-}
-
 
 if (process.env.ENABLE_TRACING == "1") {
   logger.info("Tracing enabled.")
@@ -42,7 +30,7 @@ if (process.env.ENABLE_TRACING == "1") {
   const { registerInstrumentations } = require('@opentelemetry/instrumentation');
   const opentelemetry = require('@opentelemetry/sdk-node');
 
-  const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-grpc');
+  const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 
   const collectorUrl = process.env.COLLECTOR_SERVICE_ADDR;
   const traceExporter = new OTLPTraceExporter({url: collectorUrl});

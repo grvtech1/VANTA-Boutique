@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/uuid"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice/genproto"
+	pb "github.com/grvtech1/VANTA-Boutique/src/reviewsservice/genproto"
 )
 
 // Store is the persistence seam for reviews. Two implementations exist behind

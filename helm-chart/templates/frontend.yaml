@@ -125,8 +125,6 @@ spec:
           - name: ENABLE_TRACING
             value: "1"
           {{- end }}
-          - name: ENABLE_PROFILER
-            value: {{ ternary "1" "0" .Values.telemetry.profiler | quote }}
           - name: ENABLE_SINGLE_SHARED_SESSION
             value: {{ .Values.frontend.singleSharedSession | quote }}
           resources:

@@ -45,11 +45,16 @@ pipeline that builds, tests, scans, and ships every service.
 - 🛡️ **Production hardening** — graceful shutdown (`SIGTERM` → drain), gRPC message-size &
   keepalive limits, input validation/length caps, DB-connectivity-driven **gRPC health**, a
   `nonroot` distroless image, and a dedicated **NetworkPolicy**.
-- ⚙️ **CI/CD** — GitHub Actions: `go vet`, **race-detector tests** with a Postgres service
-  container, multi-service Docker builds, a **Trivy CRITICAL gate** (scan what ships), a
-  **CycloneDX SBOM** per image, and Kustomize/Helm render validation. On `main`, CD pushes
-  **immutable git-SHA images** and **commits the tag into the staging overlay** — pull-based
-  GitOps, CI never touches the cluster.
+- ⚙️ **CI/CD** — GitHub Actions: `go vet` + unit tests across the Go services, **race-detector
+  tests** with a Postgres service container, Docker builds of **all 12 services**, a **Trivy
+  CRITICAL gate** (scan what ships), a **CycloneDX SBOM** per image, and Kustomize/Helm render
+  validation. On `main`, CD pushes **immutable git-SHA images** and **commits the tags into the
+  staging overlay** — pull-based GitOps, CI never touches the cluster.
+- 🧹 **Cloud-neutral by construction** — every image runs from this repo's own registry
+  namespace (`docker.io/grvp1`, no upstream or cloud-provider registry at runtime), and the
+  provider-specific SDKs the demo shipped with (Cloud Profiler, GCE metadata detection,
+  AlloyDB/Spanner/Secret Manager stores) were removed from the services. Fewer dependencies
+  → smaller images and a smaller CVE surface for the scan gate.
 - ☸️ **Self-managed platform on AWS** — the whole stack is reproducible from code:
   **Terraform** provisions a VPC + 3 EC2 nodes, **Ansible** + `kubeadm` form the cluster,
   **ArgoCD** delivers via pull-based GitOps, and **Prometheus/Grafana/Loki** provide

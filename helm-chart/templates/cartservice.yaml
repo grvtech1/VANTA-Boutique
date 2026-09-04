@@ -247,11 +247,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        {{- if .Values.cartDatabase.inClusterRedis.publicRepository }}
-        image: redis:alpine@sha256:c5e375abb885e6b2021c0377879e4890bf76f9065b8922ffc113f2b226b9fc17
-        {{- else }}
-        image: {{ .Values.images.repository }}/redis:alpine
-        {{- end }}
+        image: {{ .Values.cartDatabase.inClusterRedis.image }}
         ports:
         - containerPort: 6379
         readinessProbe:

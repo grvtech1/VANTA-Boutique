@@ -9,7 +9,7 @@
 # WHY --kubelet-insecure-tls?
 #   kubeadm generates self-signed certificates.
 #   metrics-server refuses to connect unless we tell it to skip TLS verification.
-#   In production (EKS/GKE), certificates are properly signed so this isn't needed.
+#   On managed clusters (EKS/AKS/etc.) the kubelet certs are CA-signed, so this is not needed.
 # =============================================================================
 
 export KUBECONFIG="${KUBECONFIG:-$PWD/kubeconfig-aws}"

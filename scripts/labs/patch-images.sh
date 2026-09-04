@@ -1,10 +1,10 @@
 #!/bin/bash
 export PATH=/home/gaurav/.local/bin:/usr/bin:/bin:$PATH
 export KUBECONFIG=/home/gaurav/online-boutique/kubeconfig-aws
-VERSION="v0.10.1"
-BASE="gcr.io/google-samples/microservices-demo"
+VERSION="${VERSION:-latest}"   # git SHA from kustomize/overlays/staging in real runs
+BASE="docker.io/grvp1"
 
-echo "=== Updating images to public GCR registry ==="
+echo "=== Updating images to docker.io/grvp1 (this repo's CI-built images) ==="
 
 declare -A IMAGES
 IMAGES[adservice]="adservice"

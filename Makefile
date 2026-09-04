@@ -28,7 +28,8 @@ render: ## render every overlay/test + lint the Helm chart (what CI does)
 	@for d in kustomize kustomize/overlays/* kustomize/tests/*/; do echo "== $$d"; kubectl kustomize $$d >/dev/null; done
 	helm lint helm-chart && helm template vanta helm-chart >/dev/null && echo "helm OK"
 
-test: ## reviewsservice vet + race tests (needs Go)
+test: ## Go vet + unit tests for every Go service; reviewsservice with the race detector (needs Go)
+	@for s in checkoutservice frontend productcatalogservice shippingservice; do echo "== $$s"; (cd src/$$s && go vet -copylocks=false ./... && go test ./...) || exit 1; done
 	cd src/reviewsservice && go vet ./... && go test -race ./...
 
 argocd: ## install ArgoCD and register the app-of-apps root

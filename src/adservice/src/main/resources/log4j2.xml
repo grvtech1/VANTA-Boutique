@@ -19,11 +19,8 @@
   <Appenders>
     <Console name="STDOUT" target="SYSTEM_OUT">
 
-      <!-- This is a JSON format that can be read by the Stackdriver Logging agent. The trace ID,
-           span ID, sampling decision, and timestamp are interpreted by Stackdriver. It uses the
-           special JSON keys that the Stackdriver Logging agent converts to "trace", "spanId",
-           "traceSampled", and "timestamp" in the Stackdriver LogEntry
-           (https://cloud.google.com/logging/docs/agent/configuration#special-fields). -->
+      <!-- Structured JSON log line: message, severity, timestamp plus trace/span IDs, so a log
+           agent (Loki/Promtail, Fluent Bit, ...) can index it and correlate with traces. -->
 
       <JsonLayout compact="true" eventEol="true">
         <KeyValuePair key="logging.googleapis.com/trace" value="$${ctx:traceId}"/>

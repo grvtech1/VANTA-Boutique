@@ -1,12 +1,13 @@
-# Chart derived from the upstream Online Boutique chart (Apache-2.0, Google LLC); adapted for
-# VANTA Boutique: reviewsservice template, per-service image overrides, cloud-neutral telemetry.
+# Chart derived from the upstream Online Boutique chart (Apache-2.0); adapted for VANTA Boutique:
+# every image is built by this repo's CI, reviewsservice template, per-service overrides,
+# cloud-neutral telemetry (no provider SDKs or registries).
 apiVersion: v2
 name: vanta-boutique
 description: VANTA Boutique — polyglot gRPC microservices storefront with a Reviews service
 type: application
 version: 1.0.0
-# Default tag for the unmodified upstream services; this repo's own images use images.overrides.
-appVersion: "v0.10.5"
+# Images are tagged with the git SHA by CD; images.tag overrides this default.
+appVersion: "1.0.0"
 keywords: [microservices, grpc, kubernetes, gitops]
 sources:
   - https://github.com/grvtech1/VANTA-Boutique

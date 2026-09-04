@@ -25,12 +25,25 @@ env:
 
 jobs:
   build-and-push:
-    name: "Push ${{ matrix.service }}:<sha>"
+    name: "Push ${{ matrix.service.name }}:<sha>"
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     strategy:
+      # All twelve services: the staging/prod overlays reference docker.io/grvp1/<svc> only.
       matrix:
-        service: [frontend, productcatalogservice, reviewsservice]
+        service:
+          - { name: adservice,             context: src/adservice }
+          - { name: cartservice,           context: src/cartservice/src }
+          - { name: checkoutservice,       context: src/checkoutservice }
+          - { name: currencyservice,       context: src/currencyservice }
+          - { name: emailservice,          context: src/emailservice }
+          - { name: frontend,              context: src/frontend }
+          - { name: loadgenerator,         context: src/loadgenerator }
+          - { name: paymentservice,        context: src/paymentservice }
+          - { name: productcatalogservice, context: src/productcatalogservice }
+          - { name: recommendationservice, context: src/recommendationservice }
+          - { name: reviewsservice,        context: src/reviewsservice }
+          - { name: shippingservice,       context: src/shippingservice }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,11 +56,11 @@ jobs:
       # Immutable tag only. No `:latest` — a moving tag makes "what is running?" unanswerable.
       - uses: docker/build-push-action@v6
         with:
-          context: ./src/${{ matrix.service }}
+          context: ./${{ matrix.service.context }}
           push: true
-          tags: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ env.SHA }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ matrix.service.name }}:${{ env.SHA }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 
   promote-staging:
     name: "GitOps: pin staging to <sha>"

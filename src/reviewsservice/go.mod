@@ -1,4 +1,4 @@
-module github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice
+module github.com/grvtech1/VANTA-Boutique/src/reviewsservice
 
 go 1.25.0
 

@@ -30,13 +30,6 @@ RUN ./gradlew installDist
 
 FROM eclipse-temurin:25.0.2_10-jre-alpine@sha256:5fcc27581b238efbfda93da3a103f59e0b5691fe522a7ac03fe8057b0819c888
 
-# @TODO: https://github.com/GoogleCloudPlatform/microservices-demo/issues/2517
-# Download Stackdriver Profiler Java agent
-# RUN mkdir -p /opt/cprof && \
-#     wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent_alpine.tar.gz \
-#     | tar xzv -C /opt/cprof && \
-#     rm -rf profiler_java_agent.tar.gz
-
 WORKDIR /app
 COPY --from=builder /app .
 

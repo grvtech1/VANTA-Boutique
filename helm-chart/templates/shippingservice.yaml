@@ -74,10 +74,6 @@ spec:
         env:
         - name: PORT
           value: "50051"
-        {{- if not .Values.telemetry.profiler }}
-        - name: DISABLE_PROFILER
-          value: "1"
-        {{- end }}
         readinessProbe:
           periodSeconds: 5
           grpc:

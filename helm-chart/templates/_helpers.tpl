@@ -1,8 +1,8 @@
 {{/*
 Resolve the image for a service.
 Usage: {{ include "vanta.image" (list . "frontend" .Values.frontend.name) }}
-If images.overrides.<key> exists, use its repository:tag; otherwise fall back to the
-upstream repository at images.tag (default Chart.appVersion).
+If images.overrides.<key> exists, use its repository:tag; otherwise images.repository/<name>
+at images.tag (default Chart.appVersion). Every image is built by this repo's CI.
 */}}
 {{- define "vanta.image" -}}
 {{- $root := index . 0 -}}

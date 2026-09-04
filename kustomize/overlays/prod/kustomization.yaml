@@ -16,15 +16,32 @@ components:
   - ../../components/ingress                # nginx Ingress (rate-limited)
   - ../../components/tls                    # cert-manager TLS on the Ingress
 
+# `latest` here means "never promoted yet": the first `scripts/promote.sh --from-staging`
+# replaces all twelve tags with one git SHA, and every later release is a Git commit.
 images:
-  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend
-    newName: docker.io/grvp1/frontend
+  - name: docker.io/grvp1/adservice
     newTag: latest
-  - name: us-central1-docker.pkg.dev/google-samples/microservices-demo/productcatalogservice
-    newName: docker.io/grvp1/productcatalogservice
+  - name: docker.io/grvp1/cartservice
+    newTag: latest
+  - name: docker.io/grvp1/checkoutservice
+    newTag: latest
+  - name: docker.io/grvp1/currencyservice
+    newTag: latest
+  - name: docker.io/grvp1/emailservice
+    newTag: latest
+  - name: docker.io/grvp1/frontend
+    newTag: latest
+  - name: docker.io/grvp1/loadgenerator
+    newTag: latest
+  - name: docker.io/grvp1/paymentservice
+    newTag: latest
+  - name: docker.io/grvp1/productcatalogservice
+    newTag: latest
+  - name: docker.io/grvp1/recommendationservice
     newTag: latest
   - name: docker.io/grvp1/reviewsservice
-    newName: docker.io/grvp1/reviewsservice
+    newTag: latest
+  - name: docker.io/grvp1/shippingservice
     newTag: latest
 
 replicas:

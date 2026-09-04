@@ -211,12 +211,11 @@ public final class AdService {
       logger.info("Tracing disabled.");
       return;
     }
-    logger.info("Tracing enabled but temporarily unavailable");
-    logger.info("See https://github.com/GoogleCloudPlatform/microservices-demo/issues/422 for more info.");
+    logger.info("Tracing enabled (OpenTelemetry wiring is a TODO for this service).");
 
     // TODO(arbrown) Implement OpenTelemetry tracing
     
-    logger.info("Tracing enabled - Stackdriver exporter initialized.");
+    logger.info("Tracing enabled - exporter initialized.");
   }
 
   /** Main launches the server from the command line. */

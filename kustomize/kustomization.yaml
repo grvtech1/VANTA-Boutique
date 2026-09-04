@@ -18,17 +18,11 @@ resources:
 - base
 components:
 - components/network-policies
-# - components/cymbal-branding
-# - components/google-cloud-operations
-# - components/memorystore
+# Optional components (see kustomize/components/*/README.md):
 # - components/non-public-frontend
-# - components/service-accounts
-# - components/alloydb
 # - components/single-shared-session
-# - components/spanner
 # - components/service-mesh-istio
 # - components/without-loadgenerator
-# These must be run last and in this order
-# - components/container-images-tag
-# - components/container-images-tag-suffix
-# - components/container-images-registry
+# - components/redis-persistence
+# - components/tracing
+# Image tags are pinned per environment in kustomize/overlays/*/kustomization.yaml.

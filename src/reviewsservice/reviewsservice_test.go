@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/GoogleCloudPlatform/microservices-demo/src/reviewsservice/genproto"
+	pb "github.com/grvtech1/VANTA-Boutique/src/reviewsservice/genproto"
 )
 
 // almostEqual compares float32 values with a small tolerance. Direct equality on

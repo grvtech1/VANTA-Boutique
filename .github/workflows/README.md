@@ -4,13 +4,13 @@
 git push (main / feature / PR)
    │
    ▼
-ci-pipeline.yml ─ lint → unit tests → reviews -race tests (Postgres) → build image
-                  → Trivy CRITICAL gate (blocking) + HIGH report → CycloneDX SBOM
-                  → kustomize + helm render validation
+ci-pipeline.yml ─ go vet + unit tests (4 Go services) → reviews -race tests (Postgres)
+                  → build ALL 12 images → Trivy CRITICAL gate (blocking) + HIGH report
+                  → CycloneDX SBOM per image → kustomize + helm render validation
    │  (main only, on success)
    ▼
-cd-pipeline.yml ─ build → push docker.io/grvp1/<svc>:<git-sha> (no :latest)
-                  → commit the SHA into kustomize/overlays/staging  [skip ci]
+cd-pipeline.yml ─ build → push docker.io/grvp1/<svc>:<git-sha> for all 12 (no :latest)
+                  → commit the SHAs into kustomize/overlays/staging  [skip ci]
    │
    ▼
 ArgoCD (in cluster) ─ sees the Git change → syncs staging.  Prod: scripts/promote.sh + manual sync.
@@ -26,5 +26,6 @@ ArgoCD (in cluster) ─ sees the Git change → syncs staging.  Prod: scripts/pr
 | `terraform-validate-ci.yaml` | changes under `terraform/` | `terraform validate` |
 
 Design notes: the pipeline never holds cluster credentials (pull-based GitOps); images are
-tagged with the git SHA only.
+tagged with the git SHA only; every image that runs in a cluster is built, scanned and pushed
+by this repo — there is no runtime dependency on an upstream or cloud-provider registry.
 Secrets required in the repo: `DOCKER_USERNAME`, `DOCKER_PASSWORD`.

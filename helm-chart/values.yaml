@@ -1,21 +1,14 @@
 # Default values for vanta-boutique.
-# Derived from the upstream Online Boutique chart (Apache-2.0); GCP-specific options removed.
+# Derived from the upstream Online Boutique chart (Apache-2.0); cloud-provider options removed.
 
 images:
-  # Unmodified upstream services pull from here at tag `images.tag` (default: Chart.appVersion).
-  repository: us-central1-docker.pkg.dev/google-samples/microservices-demo
-  tag: ""
-  # Services rebuilt by this repo's CI. Set `tag` to a git SHA in real environments.
-  overrides:
-    frontend:
-      repository: docker.io/grvp1/frontend
-      tag: latest
-    productcatalogservice:
-      repository: docker.io/grvp1/productcatalogservice
-      tag: latest
-    reviewsservice:
-      repository: docker.io/grvp1/reviewsservice
-      tag: latest
+  # All twelve services are built by this repo's CI and pushed here tagged with the git SHA.
+  # Set `tag` to that SHA in real environments (staging/prod); `latest` is for local loops only.
+  repository: docker.io/grvp1
+  tag: latest
+  # Optional per-service override, e.g. to canary one service from a different build:
+  #   overrides: { frontend: { repository: docker.io/grvp1/frontend, tag: <git-sha> } }
+  overrides: {}
 
 serviceAccounts:
   create: true
@@ -36,7 +29,6 @@ authorizationPolicies:
 # kustomize `tracing` component's otel-collector) to enable tracing.
 telemetry:
   tracing: false
-  profiler: false
   metrics: false
   collectorAddr: ""
 
@@ -86,7 +78,7 @@ frontend:
   create: true
   name: frontend
   externalService: true
-  # One of: local, aws, azure, onprem, alibaba, gcp — only affects the UI banner.
+  # One of: local, aws, azure, onprem, alibaba — only affects the UI banner.
   platform: local
   singleSharedSession: false
   virtualService:
@@ -156,13 +148,14 @@ shippingService:
     limits: { cpu: 200m, memory: 128Mi }
 
 cartDatabase:
-  # Redis only (upstream also supported Spanner/AlloyDB; removed here).
+  # Redis only (the upstream Spanner/AlloyDB stores were removed from cartservice).
   type: redis
   connectionString: "redis-cart:6379"
   inClusterRedis:
     create: true
     name: redis-cart
-    publicRepository: true
+    # Docker Hub library image, digest-pinned (Redis is the one image this repo does not build).
+    image: redis:alpine@sha256:c5e375abb885e6b2021c0377879e4890bf76f9065b8922ffc113f2b226b9fc17
   externalRedisTlsOrigination:
     enable: false
     name: exernal-redis-tls-origination
