@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [checkoutservice, frontend, productcatalogservice, shippingservice]
+        service: [checkoutservice, frontend, inventoryservice, productcatalogservice, shippingservice, wishlistservice]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -90,12 +90,14 @@ jobs:
           - { name: currencyservice,       context: src/currencyservice }
           - { name: emailservice,          context: src/emailservice }
           - { name: frontend,              context: src/frontend }
+          - { name: inventoryservice,      context: src/inventoryservice }
           - { name: loadgenerator,         context: src/loadgenerator }
           - { name: paymentservice,        context: src/paymentservice }
           - { name: productcatalogservice, context: src/productcatalogservice }
           - { name: recommendationservice, context: src/recommendationservice }
           - { name: reviewsservice,        context: src/reviewsservice }
           - { name: shippingservice,       context: src/shippingservice }
+          - { name: wishlistservice,       context: src/wishlistservice }
     env:
       IMAGE: vanta-${{ matrix.service.name }}:${{ github.sha }}
     steps:
@@ -108,7 +110,7 @@ jobs:
           load: true
           push: false
           tags: ${{ env.IMAGE }}
-          # one cache scope per service, otherwise the twelve jobs evict each other's layers
+          # one cache scope per service, otherwise the fourteen jobs evict each other's layers
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 

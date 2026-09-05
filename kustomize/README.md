@@ -30,7 +30,7 @@ kubectl kustomize kustomize/overlays/prod > /tmp/prod.yaml   # what ArgoCD would
 
 ## Images
 
-All twelve services point at `docker.io/grvp1/<svc>` — every image that runs is built, scanned
+All fourteen services point at `docker.io/grvp1/<svc>` — every image that runs is built, scanned
 and pushed by this repo's CI (no upstream or cloud-provider registry at runtime). Only Redis is
 a Docker Hub library image. Tags:
 

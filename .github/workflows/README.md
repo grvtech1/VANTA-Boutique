@@ -5,11 +5,11 @@ git push (main / feature / PR)
    │
    ▼
 ci-pipeline.yml ─ go vet + unit tests (4 Go services) → reviews -race tests (Postgres)
-                  → build ALL 12 images → Trivy CRITICAL gate (blocking) + HIGH report
+                  → build ALL 14 images → Trivy CRITICAL gate (blocking) + HIGH report
                   → CycloneDX SBOM per image → kustomize + helm render validation
    │  (main only, on success)
    ▼
-cd-pipeline.yml ─ build → push docker.io/grvp1/<svc>:<git-sha> for all 12 (no :latest)
+cd-pipeline.yml ─ build → push docker.io/grvp1/<svc>:<git-sha> for all 14 (no :latest)
                   → commit the SHAs into kustomize/overlays/staging  [skip ci]
    │
    ▼

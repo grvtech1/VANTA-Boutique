@@ -17,7 +17,7 @@ components:
   - ../../components/tls                    # cert-manager TLS on the Ingress
 
 # `latest` here means "never promoted yet": the first `scripts/promote.sh --from-staging`
-# replaces all twelve tags with one git SHA, and every later release is a Git commit.
+# replaces all fourteen tags with one git SHA, and every later release is a Git commit.
 images:
   - name: docker.io/grvp1/adservice
     newTag: latest
@@ -31,6 +31,8 @@ images:
     newTag: latest
   - name: docker.io/grvp1/frontend
     newTag: latest
+  - name: docker.io/grvp1/inventoryservice
+    newTag: latest
   - name: docker.io/grvp1/loadgenerator
     newTag: latest
   - name: docker.io/grvp1/paymentservice
@@ -42,6 +44,8 @@ images:
   - name: docker.io/grvp1/reviewsservice
     newTag: latest
   - name: docker.io/grvp1/shippingservice
+    newTag: latest
+  - name: docker.io/grvp1/wishlistservice
     newTag: latest
 
 replicas:
@@ -68,6 +72,10 @@ replicas:
   - name: reviewsservice
     count: 2
   - name: shippingservice
+    count: 3
+  - name: wishlistservice
+    count: 1   # in-memory store — see kustomize/base/wishlistservice.yaml
+  - name: inventoryservice
     count: 3
 
 patches:

@@ -30,7 +30,7 @@ render: ## render every overlay/test + lint the Helm chart (what CI does)
 
 test: ## Go vet + unit tests for every Go service; reviewsservice with the race detector (needs Go)
 	@for s in checkoutservice frontend productcatalogservice shippingservice; do echo "== $$s"; (cd src/$$s && go vet -copylocks=false ./... && go test ./...) || exit 1; done
-	cd src/reviewsservice && go vet ./... && go test -race ./...
+	@for s in reviewsservice wishlistservice inventoryservice; do echo "== $$s"; (cd src/$$s && go vet ./... && go test -race ./...) || exit 1; done
 
 argocd: ## install ArgoCD and register the app-of-apps root
 	scripts/setup-argocd.sh

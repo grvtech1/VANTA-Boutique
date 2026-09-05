@@ -86,6 +86,10 @@ spec:
             value: "shoppingassistantservice:80"
           - name: REVIEWS_SERVICE_ADDR
             value: "reviewsservice:50051"
+          - name: WISHLIST_SERVICE_ADDR
+            value: "wishlistservice:50052"
+          - name: INVENTORY_SERVICE_ADDR
+            value: "inventoryservice:50053"
           # ENV_PLATFORM only changes the UI banner: local (default), aws, azure, onprem, alibaba
           # - name: ENV_PLATFORM
           #   value: "aws"

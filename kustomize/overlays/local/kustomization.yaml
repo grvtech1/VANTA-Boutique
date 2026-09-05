@@ -1,0 +1,77 @@
+# local overlay — the dev overlay, but the services you are iterating on come from images
+# built on this machine and loaded into kind (no registry round-trip):
+#
+#   docker build -t vanta-frontend:local src/frontend
+#   docker build -t vanta-wishlistservice:local src/wishlistservice
+#   docker build -t vanta-inventoryservice:local src/inventoryservice
+#   kind load docker-image vanta-frontend:local vanta-wishlistservice:local vanta-inventoryservice:local --name boutique
+#   kubectl apply -k kustomize/overlays/local
+#
+# Everything else still floats on docker.io/grvp1/<svc>:latest exactly like dev.
+# Add more services to `images:` (and the IfNotPresent patch) as you work on them.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../dev
+
+# A laptop-sized kind cluster does not need synthetic traffic; drop the loadgenerator.
+components:
+  - ../../components/without-loadgenerator
+
+images:
+  # --- services built on this machine ---
+  - name: docker.io/grvp1/frontend
+    newName: vanta-frontend
+    newTag: local
+  - name: docker.io/grvp1/wishlistservice
+    newName: vanta-wishlistservice
+    newTag: local
+  - name: docker.io/grvp1/inventoryservice
+    newName: vanta-inventoryservice
+    newTag: local
+  # --- everything else: the last CD-promoted git SHA (CD pushes no :latest). Refresh with
+  #     scripts/bump-image-tags.sh kustomize/overlays/local/kustomization.yaml <sha> adservice cartservice ...
+  - name: docker.io/grvp1/adservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/cartservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/checkoutservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/currencyservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/emailservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/paymentservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/productcatalogservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/recommendationservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/reviewsservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/shippingservice
+    newTag: 4588adafb11d303d648a80098b75c78656964416
+
+patches:
+  # kind-loaded images are not in any registry: never try to pull them.
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      kind: Deployment
+      name: wishlistservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      kind: Deployment
+      name: inventoryservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent

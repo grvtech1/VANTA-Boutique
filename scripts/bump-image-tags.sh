@@ -10,8 +10,9 @@ tag="${2:?image tag (git sha)}"
 shift 2
 services=("$@")
 [ ${#services[@]} -eq 0 ] && services=(
-  adservice cartservice checkoutservice currencyservice emailservice frontend loadgenerator
-  paymentservice productcatalogservice recommendationservice reviewsservice shippingservice
+  adservice cartservice checkoutservice currencyservice emailservice frontend inventoryservice
+  loadgenerator paymentservice productcatalogservice recommendationservice reviewsservice
+  shippingservice wishlistservice
 )
 
 [ -f "$file" ] || { echo "no such file: $file" >&2; exit 1; }

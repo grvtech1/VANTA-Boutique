@@ -1,0 +1,21 @@
+# inventoryservice: only the frontend may call it, on 50053. It calls nothing.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inventoryservice
+spec:
+  podSelector:
+    matchLabels:
+      app: inventoryservice
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+     - port: 50053
+       protocol: TCP
+  egress: []

@@ -1,0 +1,137 @@
+# inventoryservice — VANTA addition (Go/gRPC). Mirrors kustomize/base/inventoryservice.yaml.
+{{- if .Values.inventoryService.create }}
+{{- if .Values.serviceAccounts.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.inventoryService.name }}
+  namespace: {{ .Release.Namespace }}
+  {{- if not .Values.serviceAccounts.annotationsOnlyForCartservice }}
+  {{- with .Values.serviceAccounts.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.inventoryService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.inventoryService.name }}
+spec:
+  replicas: {{ .Values.inventoryService.replicas }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ .Values.inventoryService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.inventoryService.name }}
+    spec:
+      {{- if .Values.serviceAccounts.create }}
+      serviceAccountName: {{ .Values.inventoryService.name }}
+      {{- else }}
+      serviceAccountName: default
+      {{- end }}
+      terminationGracePeriodSeconds: 25
+      {{- if .Values.securityContext.enable }}
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        {{- if .Values.seccompProfile.enable }}
+        seccompProfile:
+          type: {{ .Values.seccompProfile.type }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - name: server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+        image: {{ include "vanta.image" (list . "inventoryservice" .Values.inventoryService.name) }}
+        ports:
+        - containerPort: 50053
+        env:
+        - name: PORT
+          value: "50053"
+        - name: LOW_STOCK_THRESHOLD
+          value: {{ .Values.inventoryService.lowStockThreshold | quote }}
+        {{- if .Values.inventoryService.seed.configMap }}
+        - name: INVENTORY_SEED_FILE
+          value: /etc/inventory/{{ .Values.inventoryService.seed.key }}
+        volumeMounts:
+        - name: inventory-seed
+          mountPath: /etc/inventory
+          readOnly: true
+        {{- end }}
+        readinessProbe:
+          periodSeconds: 5
+          timeoutSeconds: 5
+          grpc:
+            port: 50053
+        livenessProbe:
+          timeoutSeconds: 5
+          grpc:
+            port: 50053
+        resources:
+          {{- toYaml .Values.inventoryService.resources | nindent 10 }}
+      {{- if .Values.inventoryService.seed.configMap }}
+      volumes:
+      - name: inventory-seed
+        configMap:
+          name: {{ .Values.inventoryService.seed.configMap }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.inventoryService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.inventoryService.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.inventoryService.name }}
+  ports:
+  - name: grpc
+    port: 50053
+    targetPort: 50053
+{{- if .Values.networkPolicies.create }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.inventoryService.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.inventoryService.name }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.frontend.name }}
+    ports:
+     - port: 50053
+       protocol: TCP
+  egress: []
+{{- end }}
+{{- end }}

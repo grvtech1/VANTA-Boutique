@@ -2,7 +2,7 @@
 # Derived from the upstream Online Boutique chart (Apache-2.0); cloud-provider options removed.
 
 images:
-  # All twelve services are built by this repo's CI and pushed here tagged with the git SHA.
+  # All fourteen services are built by this repo's CI and pushed here tagged with the git SHA.
   # Set `tag` to that SHA in real environments (staging/prod); `latest` is for local loops only.
   repository: docker.io/grvp1
   tag: latest
@@ -136,6 +136,33 @@ reviewsService:
     # component: key `database-url` in Secret `reviews-db`.
     existingSecret: reviews-db
     key: database-url
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# New in VANTA: server-side saved items, keyed by session (see src/wishlistservice).
+wishlistService:
+  create: true
+  name: wishlistservice
+  # Must stay 1: the store is in-memory and per-pod (the chart refuses >1).
+  replicas: 1
+  maxItemsPerUser: 200
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# New in VANTA: stock levels for "in stock / only N left / sold out" (see src/inventoryservice).
+inventoryService:
+  create: true
+  name: inventoryservice
+  # Read-only and seeded, so it scales horizontally.
+  replicas: 2
+  lowStockThreshold: 5
+  seed:
+    # Name a ConfigMap holding `<key>` (JSON of product id → quantity) to override the
+    # built-in seed without a rebuild. Empty = built-in catalog quantities.
+    configMap: ""
+    key: seed.json
   resources:
     requests: { cpu: 50m, memory: 32Mi }
     limits: { cpu: 200m, memory: 128Mi }

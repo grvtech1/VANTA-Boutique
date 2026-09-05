@@ -108,6 +108,14 @@ spec:
             value: "{{ .Values.adService.name }}:9555"
           - name: REVIEWS_SERVICE_ADDR
             value: "{{ .Values.reviewsService.name }}:50051"
+          {{- if .Values.wishlistService.create }}
+          - name: WISHLIST_SERVICE_ADDR
+            value: "{{ .Values.wishlistService.name }}:50052"
+          {{- end }}
+          {{- if .Values.inventoryService.create }}
+          - name: INVENTORY_SERVICE_ADDR
+            value: "{{ .Values.inventoryService.name }}:50053"
+          {{- end }}
           # The frontend binary requires this address even though the assistant feature is off.
           - name: SHOPPING_ASSISTANT_SERVICE_ADDR
             value: "shoppingassistantservice:80"

@@ -29,7 +29,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     strategy:
-      # All twelve services: the staging/prod overlays reference docker.io/grvp1/<svc> only.
+      # All fourteen services: the staging/prod overlays reference docker.io/grvp1/<svc> only.
       matrix:
         service:
           - { name: adservice,             context: src/adservice }
@@ -38,12 +38,14 @@ jobs:
           - { name: currencyservice,       context: src/currencyservice }
           - { name: emailservice,          context: src/emailservice }
           - { name: frontend,              context: src/frontend }
+          - { name: inventoryservice,      context: src/inventoryservice }
           - { name: loadgenerator,         context: src/loadgenerator }
           - { name: paymentservice,        context: src/paymentservice }
           - { name: productcatalogservice, context: src/productcatalogservice }
           - { name: recommendationservice, context: src/recommendationservice }
           - { name: reviewsservice,        context: src/reviewsservice }
           - { name: shippingservice,       context: src/shippingservice }
+          - { name: wishlistservice,       context: src/wishlistservice }
     steps:
       - uses: actions/checkout@v4
         with:

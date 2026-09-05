@@ -35,6 +35,21 @@ pipeline that builds, tests, scans, and ships every service.
 - 🆕 **Reviews microservice** (`reviewsservice`, Go/gRPC) — `GetReviews` + `AddReview`, with a
   pluggable **`Store` interface**: a bounded, concurrency-safe **in-memory** store by default,
   or a durable, shared **PostgreSQL** store (pgx/v5) for multi-replica deployments.
+- 🆕 **Wishlist microservice** (`wishlistservice`, Go/gRPC) — saved items keyed by the
+  shopper's session, so the ♥ list survives a cleared browser. Idempotent add/remove, bounded
+  per user and in total; the storefront falls back to `localStorage` when it is not deployed.
+- 🆕 **Inventory microservice** (`inventoryservice`, Go/gRPC) — stock levels behind
+  "In stock", "Only 3 left" and "Sold out" on the catalog and product pages, an
+  "In stock only" filter, and a disabled Add-to-Cart when sold out. Seeded from a built-in
+  table or a mounted ConfigMap (`INVENTORY_SEED_FILE`) — change stock without a rebuild.
+- 🇮🇳 **Rupee-first pricing** — INR is the default currency with the ₹ symbol and Indian
+  digit grouping (`₹1,29,999.00`); every other currency keeps its own grouping and yen
+  drops the decimals.
+- ✨ **Storefront polish** — scroll-reveal cards, blur-up images, a hover zoom lens and
+  sticky gallery on the product page, quantity stepper, toasts for wishlist actions,
+  trust strip (delivery / returns / secure checkout), and a reviews section with a rating
+  distribution, sort, star picker and "helpful" votes — all with `prefers-reduced-motion`
+  respected.
 - 🎨 **VANTA storefront** — a curated **25-product catalog across 6 categories** with a live
   **category filter, search, and sort**, a **localStorage wishlist**, "New" badges, and
   **real product photography** (bundled Unsplash imagery, self-contained — no runtime CDN
@@ -46,7 +61,7 @@ pipeline that builds, tests, scans, and ships every service.
   keepalive limits, input validation/length caps, DB-connectivity-driven **gRPC health**, a
   `nonroot` distroless image, and a dedicated **NetworkPolicy**.
 - ⚙️ **CI/CD** — GitHub Actions: `go vet` + unit tests across the Go services, **race-detector
-  tests** with a Postgres service container, Docker builds of **all 12 services**, a **Trivy
+  tests** with a Postgres service container, Docker builds of **all 14 services**, a **Trivy
   CRITICAL gate** (scan what ships), a **CycloneDX SBOM** per image, and Kustomize/Helm render
   validation. On `main`, CD pushes **immutable git-SHA images** and **commits the tags into the
   staging overlay** — pull-based GitOps, CI never touches the cluster.
@@ -127,6 +142,8 @@ flowchart TD
 | --- | --- | --- |
 | [frontend](/src/frontend) | Go | HTTP server for the website; auto-generates a session for every visitor (no login). Renders the reviews UI. |
 | [reviewsservice](/src/reviewsservice) ⭐ | Go | **New in VANTA.** Serves product reviews & aggregate ratings over gRPC; in-memory or PostgreSQL store. |
+| [wishlistservice](/src/wishlistservice) ⭐ | Go | **New in VANTA.** Server-side saved items keyed by session; bounded in-memory store behind a `Store` seam. |
+| [inventoryservice](/src/inventoryservice) ⭐ | Go | **New in VANTA.** Stock levels (in stock / only N left / sold out); seeded from a table or a ConfigMap. |
 | [cartservice](/src/cartservice) | C# | Stores cart items in Redis and retrieves them. |
 | [productcatalogservice](/src/productcatalogservice) | Go | Provides the product list, search, and individual product lookups. |
 | [currencyservice](/src/currencyservice) | Node.js | Converts money between currencies (ECB rates). Highest-QPS service. |
@@ -223,7 +240,7 @@ The quickest way to see the full store on your machine — a local
 # 1. Create a local cluster (maps NodePort 30080 → host 8888; 80/443 for the optional Ingress)
 kind create cluster --config kind-local.yaml            # make kind-up
 
-# 2. Deploy the dev overlay (namespace `boutique`: all 12 services + Redis)
+# 2. Deploy the dev overlay (namespace `boutique`: all 14 services + Redis)
 kubectl apply -k kustomize/overlays/dev                 # make deploy
 
 # 3. Wait for everything to be Ready
@@ -287,6 +304,8 @@ components:
 - [Development guide](/docs/development-guide.md) — run and develop locally on kind.
 - [CI/CD workflows](/.github/workflows/README.md) · [Kustomize layout](/kustomize/README.md) · [Helm chart](/helm-chart/README.md) · [Monitoring](/monitoring/README.md)
 - [Reviews service](/src/reviewsservice/README.md) — API, storage modes, and configuration.
+- [Wishlist service](/src/wishlistservice/README.md) — API, bounds, and configuration.
+- [Inventory service](/src/inventoryservice/README.md) — API, seed data, and configuration.
 - [Adding a new microservice](/docs/adding-new-microservice.md) — reviewsservice as the worked example.
 - [Learning-phase lab scripts](/scripts/labs/README.md) — the minikube → AWS journey, kept honestly.
 

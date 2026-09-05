@@ -1,0 +1,98 @@
+# Copyright 2026 VANTA Boutique contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlistservice
+  labels:
+    app: wishlistservice
+spec:
+  # IMPORTANT: single replica, no HPA, no PDB. The store is in-process; a second
+  # pod would hold a different wishlist for the same session. Scale out only
+  # after moving to a shared store (see src/wishlistservice/store.go — the
+  # Store interface seam).
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: wishlistservice
+  template:
+    metadata:
+      labels:
+        app: wishlistservice
+    spec:
+      serviceAccountName: wishlistservice
+      terminationGracePeriodSeconds: 25
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: server
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+        # Built and pushed by the CD pipeline; overlays pin an immutable :<git-sha>.
+        image: docker.io/grvp1/wishlistservice:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50052
+        env:
+        - name: PORT
+          value: "50052"
+        readinessProbe:
+          periodSeconds: 5
+          timeoutSeconds: 5
+          grpc:
+            port: 50052
+        livenessProbe:
+          timeoutSeconds: 5
+          grpc:
+            port: 50052
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wishlistservice
+  labels:
+    app: wishlistservice
+spec:
+  type: ClusterIP
+  selector:
+    app: wishlistservice
+  ports:
+  - name: grpc
+    port: 50052
+    targetPort: 50052
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wishlistservice

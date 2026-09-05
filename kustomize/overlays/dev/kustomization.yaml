@@ -22,6 +22,8 @@ images:
     newTag: latest
   - name: docker.io/grvp1/frontend
     newTag: latest
+  - name: docker.io/grvp1/inventoryservice
+    newTag: latest
   - name: docker.io/grvp1/loadgenerator
     newTag: latest
   - name: docker.io/grvp1/paymentservice
@@ -33,6 +35,8 @@ images:
   - name: docker.io/grvp1/reviewsservice
     newTag: latest
   - name: docker.io/grvp1/shippingservice
+    newTag: latest
+  - name: docker.io/grvp1/wishlistservice
     newTag: latest
 
 replicas:
@@ -59,6 +63,10 @@ replicas:
   - name: reviewsservice
     count: 1
   - name: shippingservice
+    count: 1
+  - name: wishlistservice
+    count: 1
+  - name: inventoryservice
     count: 1
 
 patches:

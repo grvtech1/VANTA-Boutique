@@ -1,5 +1,5 @@
 # staging overlay — auto-synced by ArgoCD. Image tags below are IMMUTABLE git SHAs written by
-# the CD pipeline (scripts/bump-image-tags.sh) for all twelve services. `latest` appears only
+# the CD pipeline (scripts/bump-image-tags.sh) for all fourteen services. `latest` appears only
 # until the first CD run after a service starts being built here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -25,6 +25,8 @@ images:
     newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/frontend
     newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/inventoryservice
+    newTag: latest
   - name: docker.io/grvp1/loadgenerator
     newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/paymentservice
@@ -37,6 +39,8 @@ images:
     newTag: 4588adafb11d303d648a80098b75c78656964416
   - name: docker.io/grvp1/shippingservice
     newTag: 4588adafb11d303d648a80098b75c78656964416
+  - name: docker.io/grvp1/wishlistservice
+    newTag: latest
 
 replicas:
   - name: adservice
@@ -62,6 +66,10 @@ replicas:
   - name: reviewsservice
     count: 2
   - name: shippingservice
+    count: 2
+  - name: wishlistservice
+    count: 1   # in-memory store — see kustomize/base/wishlistservice.yaml
+  - name: inventoryservice
     count: 2
 
 patches:

@@ -21,9 +21,11 @@ resources:
 - currencyservice.yaml
 - emailservice.yaml
 - frontend.yaml
+- inventoryservice.yaml
 - loadgenerator.yaml
 - paymentservice.yaml
 - productcatalogservice.yaml
 - recommendationservice.yaml
 - reviewsservice.yaml
 - shippingservice.yaml
+- wishlistservice.yaml

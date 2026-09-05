@@ -76,6 +76,18 @@ spec:
     matchLabels:
       app: reviewsservice
 ---
+# inventoryservice is read-only and seeded, so staging/prod run 2+ replicas.
+# wishlistservice deliberately has NO PDB: it is single-replica (in-memory store).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inventoryservice-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: inventoryservice
+---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
