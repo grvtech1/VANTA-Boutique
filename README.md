@@ -21,9 +21,9 @@
 ## Overview
 
 **VANTA Boutique** is a web-based storefront where shoppers browse a curated catalog,
-read and write **product reviews**, manage a cart, and check out — all served by **12
-independent microservices** written in **six languages** (Go, C#, Node.js, Python, Java)
-that communicate over **gRPC**.
+read and write **product reviews**, save items to a wishlist, see live stock, manage a cart,
+and check out — all served by **14 independent microservices** written in **five languages**
+(Go, C#, Node.js, Python, Java) that communicate over **gRPC**.
 
 It began as a fork of Google's *Online Boutique* and was rebuilt into a production-leaning
 DevOps showcase: a **brand-new Reviews microservice** taken end-to-end (proto → service →
