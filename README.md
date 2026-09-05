@@ -83,7 +83,7 @@ pipeline that builds, tests, scans, and ships every service.
 
 | Product detail | Cart & checkout | Order confirmed |
 | --- | --- | --- |
-| ![VANTA product detail](/docs/screenshots/product-detail.png) | ![VANTA cart and checkout](/docs/screenshots/cart-checkout.png) | ![VANTA order confirmation](/docs/screenshots/order-confirmed.png) |
+| ![VANTA product detail](/docs/screenshots/product-detail.png) | ![VANTA sold-out product](/docs/screenshots/product-soldout.png) | ![VANTA cart and checkout](/docs/screenshots/cart-checkout.png) | ![VANTA order confirmation](/docs/screenshots/order-confirmed.png) |
 
 ## 🏗 Architecture
 
