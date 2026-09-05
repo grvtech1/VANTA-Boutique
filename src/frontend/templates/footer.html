@@ -5,9 +5,32 @@
 
 {{ define "footer" }}
 <footer>
-  <div class="footer-content">
-    <div class="footer-brand">VANTA</div>
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-brand">VANTA</div>
+      <p class="footer-tagline">Handpicked lifestyle essentials — accessories, apparel, footwear, home, beauty and tech — shipped across India.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Shop</h5>
+      <a href="{{ $.baseUrl }}/#products">All products</a>
+      <a href="{{ $.baseUrl }}/#wishlist">Saved items</a>
+      <a href="{{ $.baseUrl }}/cart">Cart</a>
+    </div>
+    <div class="footer-col">
+      <h5>Help</h5>
+      <span>Free delivery over ₹999</span>
+      <span>7-day easy returns</span>
+      <span>UPI, cards &amp; net banking</span>
+    </div>
+    <div class="footer-col">
+      <h5>Platform</h5>
+      <a href="https://github.com/grvtech1/VANTA-Boutique" rel="noopener" target="_blank">Source on GitHub</a>
+      <span>14 gRPC microservices</span>
+      <span>Kubernetes · ArgoCD · Prometheus</span>
+    </div>
+  </div>
 
+  <div class="footer-content">
     <div class="footer-meta">
       {{ if $.session_id }}
       <span class="footer-meta-item session-info">session: {{$.session_id}}</span>

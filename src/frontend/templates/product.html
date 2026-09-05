@@ -22,15 +22,27 @@
       <div class="row">
 
         <!-- Product Image -->
-        <div class="product-image-container">
-          <img src="{{ $.baseUrl }}{{ $.product.Item.Picture }}" alt="{{ $.product.Item.Name }}">
+        <div class="product-image-container" data-reveal>
+          <img src="{{ $.baseUrl }}{{ $.product.Item.Picture }}" alt="{{ $.product.Item.Name }}" decoding="async">
         </div>
 
         <!-- Product Details -->
-        <div class="product-details">
+        <div class="product-details" data-reveal>
           <span class="vpc-cat" data-cat="{{ index $.product.Item.Categories 0 }}"></span>
           <h2>{{ $.product.Item.Name }}</h2>
-          <div class="product-price">{{ renderMoney $.product.Price }}</div>
+          {{ if gt $.avg_rating 0.0 }}
+          <a class="product-rating-link" href="#reviews">
+            <span class="review-stars" role="img" aria-label="Average rating {{ printf "%.1f" $.avg_rating }} out of 5">{{ renderStars (roundRating $.avg_rating) }}</span>
+            <span class="reviews-avg-out">{{ printf "%.1f" $.avg_rating }} · {{ len $.reviews }} review{{ if ne (len $.reviews) 1 }}s{{ end }}</span>
+          </a>
+          {{ end }}
+          <div class="product-price-block">
+            <div class="product-price">{{ renderMoney $.product.Price }}</div>
+            <span class="product-price-note">inclusive of all taxes</span>
+          </div>
+          {{ if $.stock.Stock }}
+          <span class="stock-pill" data-stock="{{ $.stock.Stock }}">{{ $.stock.Label }}</span>
+          {{ end }}
           <p class="product-description">{{ $.product.Item.Description }}</p>
 
           {{ if $.packagingInfo }}
@@ -43,23 +55,35 @@
 
           <form method="POST" action="{{ $.baseUrl }}/cart">
             <input type="hidden" name="product_id" value="{{ $.product.Item.Id }}">
-            <div class="product-quantity">
-              <label for="quantity">Quantity</label>
-              <select name="quantity" id="quantity">
-                <option>1</option>
-                <option>2</option>
-                <option>3</option>
-                <option>4</option>
-                <option>5</option>
-                <option>6</option>
-                <option>7</option>
-                <option>8</option>
-                <option>9</option>
-                <option>10</option>
-              </select>
+            <div class="product-actions">
+              <div class="qty-stepper" data-min="1" data-max="{{ if and (eq $.stock.Stock "low") (lt $.stock.Qty 10) }}{{ $.stock.Qty }}{{ else }}10{{ end }}" aria-label="Quantity">
+                <button type="button" data-step="-1" aria-label="Decrease quantity">−</button>
+                <span class="qty-value" aria-live="polite">1</span>
+                <button type="button" data-step="1" aria-label="Increase quantity">+</button>
+                <input type="hidden" name="quantity" value="1">
+              </div>
+              {{ if eq $.stock.Stock "out" }}
+              <button type="submit" class="cymbal-button-primary" disabled aria-disabled="true">Sold out</button>
+              {{ else }}
+              <button type="submit" class="cymbal-button-primary">Add to Cart</button>
+              {{ end }}
             </div>
-            <button type="submit" class="cymbal-button-primary">Add to Cart</button>
           </form>
+
+          <div class="product-trust" aria-label="Delivery and returns">
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <strong>Free delivery</strong>over ₹999
+            </div>
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+              <strong>7-day returns</strong>easy pickup
+            </div>
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <strong>Secure payment</strong>UPI &amp; cards
+            </div>
+          </div>
         </div>
 
       </div>
@@ -71,23 +95,46 @@
     <div class="vanta-container">
       <div class="reviews-header">
         <h3 id="reviews-heading">Customer Reviews</h3>
-        {{ if gt $.avg_rating 0.0 }}
-        <div class="reviews-avg">
-          <span class="review-stars" role="img" aria-label="Average rating {{ printf "%.1f" $.avg_rating }} out of 5">{{ renderStars (roundRating $.avg_rating) }}</span>
-          <span class="reviews-avg-value">{{ printf "%.1f" $.avg_rating }}</span>
-          <span class="reviews-avg-out">/ 5.0 &middot; {{ len $.reviews }} review{{ if ne (len $.reviews) 1 }}s{{ end }}</span>
+        {{ if $.reviews }}
+        <div class="reviews-sort">
+          <label for="review-sort" class="sr-only">Sort reviews</label>
+          <select id="review-sort" aria-label="Sort reviews">
+            <option value="newest">Newest first</option>
+            <option value="highest">Highest rated</option>
+            <option value="lowest">Lowest rated</option>
+          </select>
         </div>
         {{ end }}
       </div>
 
       {{ if $.reviews }}
+      <div class="reviews-summary" data-reveal>
+        <div class="reviews-avg">
+          <span class="reviews-avg-value">{{ printf "%.1f" $.avg_rating }}</span>
+          <span class="review-stars" role="img" aria-label="Average rating {{ printf "%.1f" $.avg_rating }} out of 5">{{ renderStars (roundRating $.avg_rating) }}</span>
+          <span class="reviews-avg-out">{{ len $.reviews }} review{{ if ne (len $.reviews) 1 }}s{{ end }}</span>
+        </div>
+        <ul class="rating-dist" aria-label="Rating breakdown">
+          {{ range $.rating_dist }}
+          <li class="rd-row">
+            <span class="rd-label">{{ .Star }} ★</span>
+            <span class="rd-track"><span class="rd-bar" style="width: {{ .Pct }}%"></span></span>
+            <span>{{ .Count }}</span>
+          </li>
+          {{ end }}
+        </ul>
+      </div>
+
       <ul class="reviews-list">
         {{ range $.reviews }}
-        <li>
+        <li data-rating="{{ .Rating }}" data-when="{{ .CreatedAtUnix }}">
           <article class="review-card">
             <div class="review-card-header">
-              <span class="review-stars" role="img" aria-label="Rated {{ .Rating }} out of 5 stars">{{ renderStars .Rating }}</span>
-              <span class="review-author">{{ .Author }}</span>
+              <span class="review-avatar" aria-hidden="true">{{ initial .Author }}</span>
+              <div class="review-meta">
+                <span class="review-author">{{ .Author }}</span>
+                <span class="review-stars" role="img" aria-label="Rated {{ .Rating }} out of 5 stars">{{ renderStars .Rating }}</span>
+              </div>
               {{ if .CreatedAtUnix }}
               <time class="review-date" datetime="{{ .CreatedAtUnix }}">{{ renderDate .CreatedAtUnix }}</time>
               {{ end }}
@@ -95,6 +142,12 @@
             {{ if .Comment }}
             <p class="review-comment">{{ .Comment }}</p>
             {{ end }}
+            <div class="review-card-footer">
+              <button type="button" class="review-helpful" data-review="{{ .ReviewId }}" aria-label="Mark this review as helpful">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                Helpful · <span class="review-helpful-count">0</span>
+              </button>
+            </div>
           </article>
         </li>
         {{ end }}
@@ -103,25 +156,29 @@
       <p class="reviews-empty">No reviews yet. Be the first to review {{ $.product.Item.Name }}.</p>
       {{ end }}
 
-      <form class="review-form" method="POST" action="{{ $.baseUrl }}/product/{{ $.product.Item.Id }}/reviews">
+      <form class="review-form" method="POST" action="{{ $.baseUrl }}/product/{{ $.product.Item.Id }}/reviews" data-reveal>
         <h4>Write a review</h4>
+        <div class="review-form-row">
+          <span class="label" id="rating-label">Your rating</span>
+          <div class="star-picker" role="radiogroup" aria-labelledby="rating-label">
+            <div class="star-picker-stars">
+              <input type="radio" id="star5" name="rating" value="5" checked><label for="star5" title="Excellent">★</label>
+              <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="Good">★</label>
+              <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="Average">★</label>
+              <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="Poor">★</label>
+              <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="Bad">★</label>
+            </div>
+            <span id="star-picker-label">Excellent</span>
+          </div>
+        </div>
         <div class="review-form-row">
           <label for="review-author">Name</label>
           <input type="text" id="review-author" name="author" maxlength="80" placeholder="Anonymous" autocomplete="name">
         </div>
         <div class="review-form-row">
-          <label for="review-rating">Rating</label>
-          <select id="review-rating" name="rating" required>
-            <option value="5">★★★★★ — Excellent</option>
-            <option value="4">★★★★☆ — Good</option>
-            <option value="3">★★★☆☆ — Average</option>
-            <option value="2">★★☆☆☆ — Poor</option>
-            <option value="1">★☆☆☆☆ — Bad</option>
-          </select>
-        </div>
-        <div class="review-form-row">
           <label for="review-comment">Comment</label>
-          <textarea id="review-comment" name="comment" rows="3" maxlength="1000" placeholder="Share your experience…"></textarea>
+          <textarea id="review-comment" name="comment" rows="3" maxlength="1000" placeholder="What did you like? How's the quality, fit, or finish?"></textarea>
+          <span class="review-char-count" id="review-comment-count">0 / 1000</span>
         </div>
         <button type="submit" class="cymbal-button-primary">Submit Review</button>
       </form>

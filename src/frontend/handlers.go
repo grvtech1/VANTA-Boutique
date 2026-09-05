@@ -49,6 +49,7 @@ var (
 				Funcs(template.FuncMap{
 			"renderMoney":        renderMoney,
 			"renderCurrencyLogo": renderCurrencyLogo,
+			"initial":            initialOf,
 			"renderStars": func(rating int32) string {
 				return strings.Repeat("★", int(rating)) + strings.Repeat("☆", 5-int(rating))
 			},
@@ -86,9 +87,16 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ids := make([]string, len(products))
+	for i, p := range products {
+		ids[i] = p.GetId()
+	}
+	stock := fe.stockFor(r.Context(), log, ids)
+
 	type productView struct {
 		Item  *pb.Product
 		Price *pb.Money
+		Stock stockView
 	}
 	ps := make([]productView, len(products))
 	for i, p := range products {
@@ -97,7 +105,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 			renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
 			return
 		}
-		ps[i] = productView{p, price}
+		ps[i] = productView{p, price, stock[p.GetId()]}
 	}
 
 	// ENV_PLATFORM selects the UI banner (local, aws, azure, onprem, alibaba); defaults to local.
@@ -191,6 +199,7 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		Item  *pb.Product
 		Price *pb.Money
 	}{p, price}
+	stock := fe.stockFor(r.Context(), log, []string{id})[id]
 
 	// Fetch packaging info (weight/dimensions) of the product
 	// The packaging service is an optional add-on microservice (not deployed by default).
@@ -214,6 +223,8 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 		"avg_rating":      avgRating,
 		"reviews_enabled": fe.reviewsSvcConn != nil,
 		"reviews_jsonld":  reviewsJSONLD(p, reviews, avgRating),
+		"rating_dist":     ratingDistribution(reviews),
+		"stock":           stock,
 	})); err != nil {
 		log.Println(err)
 	}
@@ -655,6 +666,8 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 		"frontendMessage":   frontendMessage,
 		"currentYear":       time.Now().Year(),
 		"baseUrl":           baseUrl,
+		"wishlist_server":   wishlistEnabled,
+		"inventory_enabled": inventoryEnabled,
 	}
 
 	for k, v := range payload {
@@ -697,27 +710,8 @@ func cartSize(c []*pb.CartItem) int {
 	return cartSize
 }
 
-func renderMoney(money pb.Money) string {
-	currencyLogo := renderCurrencyLogo(money.GetCurrencyCode())
-	return fmt.Sprintf("%s%d.%02d", currencyLogo, money.GetUnits(), money.GetNanos()/10000000)
-}
-
-func renderCurrencyLogo(currencyCode string) string {
-	logos := map[string]string{
-		"USD": "$",
-		"CAD": "$",
-		"JPY": "¥",
-		"EUR": "€",
-		"TRY": "₺",
-		"GBP": "£",
-	}
-
-	logo := "$" //default
-	if val, ok := logos[currencyCode]; ok {
-		logo = val
-	}
-	return logo
-}
+// renderMoney and renderCurrencyLogo live in format.go (currency-aware digit
+// grouping: Indian lakh/crore for INR, thousands elsewhere).
 
 func stringinSlice(slice []string, val string) bool {
 	for _, item := range slice {

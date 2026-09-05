@@ -36,7 +36,7 @@ import (
 
 const (
 	port            = "8080"
-	defaultCurrency = "USD"
+	defaultCurrency = "INR"
 	cookieMaxAge    = 60 * 60 * 48
 
 	cookiePrefix    = "shop_"
@@ -46,6 +46,7 @@ const (
 
 var (
 	whitelistedCurrencies = map[string]bool{
+		"INR": true,
 		"USD": true,
 		"EUR": true,
 		"CAD": true,
@@ -55,6 +56,11 @@ var (
 	}
 
 	baseUrl = ""
+
+	// Set in main() once the optional service connections are up; templates use
+	// them to decide whether the wishlist is server-backed and stock is shown.
+	wishlistEnabled  = false
+	inventoryEnabled = false
 )
 
 type ctxKeySessionID struct{}
@@ -83,6 +89,12 @@ type frontendServer struct {
 
 	reviewsSvcAddr string
 	reviewsSvcConn *grpc.ClientConn
+
+	wishlistSvcAddr string
+	wishlistSvcConn *grpc.ClientConn
+
+	inventorySvcAddr string
+	inventorySvcConn *grpc.ClientConn
 
 	collectorAddr string
 	collectorConn *grpc.ClientConn
@@ -135,6 +147,14 @@ func main() {
 	if addr := os.Getenv("REVIEWS_SERVICE_ADDR"); addr != "" {
 		svc.reviewsSvcAddr = addr
 	}
+	// Optional services: the storefront degrades gracefully without them
+	// (localStorage wishlist, no stock chips).
+	if addr := os.Getenv("WISHLIST_SERVICE_ADDR"); addr != "" {
+		svc.wishlistSvcAddr = addr
+	}
+	if addr := os.Getenv("INVENTORY_SERVICE_ADDR"); addr != "" {
+		svc.inventorySvcAddr = addr
+	}
 
 	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
 	mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
@@ -146,11 +166,21 @@ func main() {
 	if svc.reviewsSvcAddr != "" {
 		mustConnGRPC(ctx, &svc.reviewsSvcConn, svc.reviewsSvcAddr)
 	}
+	if svc.wishlistSvcAddr != "" {
+		mustConnGRPC(ctx, &svc.wishlistSvcConn, svc.wishlistSvcAddr)
+		wishlistEnabled = true
+	}
+	if svc.inventorySvcAddr != "" {
+		mustConnGRPC(ctx, &svc.inventorySvcConn, svc.inventorySvcAddr)
+		inventoryEnabled = true
+	}
 
 	r := mux.NewRouter()
 	r.HandleFunc(baseUrl+"/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/product/{id}/reviews", svc.addReviewHandler).Methods(http.MethodPost)
+	r.HandleFunc(baseUrl+"/wishlist", svc.getWishlistHandler).Methods(http.MethodGet)
+	r.HandleFunc(baseUrl+"/wishlist/{id}", svc.toggleWishlistHandler).Methods(http.MethodPost, http.MethodDelete)
 	r.HandleFunc(baseUrl+"/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/cart", svc.addToCartHandler).Methods(http.MethodPost)
 	r.HandleFunc(baseUrl+"/cart/empty", svc.emptyCartHandler).Methods(http.MethodPost)

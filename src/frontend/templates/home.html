@@ -11,12 +11,28 @@
   <!-- Hero Banner -->
   <section class="hero-banner">
     <img src="{{ $.baseUrl }}/static/images/vanta-hero.png" alt="VANTA Premium Collection" loading="eager">
-    <div class="hero-content">
+    <div class="hero-content" data-reveal>
+      <span class="hero-eyebrow">New season · Curated in India</span>
       <h1>Curated for the Bold</h1>
       <p>Discover a premium collection of handpicked lifestyle essentials, designed for those who demand excellence.</p>
       <a href="#products" class="hero-cta">Explore Collection</a>
     </div>
   </section>
+
+  <div class="trust-strip" aria-label="Why shop with VANTA">
+    <div class="trust-item" data-reveal>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <div><strong>Free delivery</strong>on orders over ₹999, anywhere in India</div>
+    </div>
+    <div class="trust-item" data-reveal>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+      <div><strong>7-day easy returns</strong>no questions asked</div>
+    </div>
+    <div class="trust-item" data-reveal>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <div><strong>Secure checkout</strong>UPI, cards and net banking</div>
+    </div>
+  </div>
 
   <!-- Products Section -->
   <section id="products" class="home-main-content">
@@ -28,7 +44,7 @@
       </div>
       {{ end }}
 
-      <div class="section-head">
+      <div class="section-head" data-reveal>
         <h2 class="section-heading">Shop the Collection</h2>
         <p class="section-sub">Twenty-five pieces across six categories — <span id="result-count">{{ len $.products }}</span> shown.</p>
       </div>
@@ -50,6 +66,9 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
             <input type="search" id="search" placeholder="Search products…" aria-label="Search products" autocomplete="off">
           </div>
+          {{ if $.inventory_enabled }}
+          <label class="cat-toggle"><input type="checkbox" id="instock"> In stock only</label>
+          {{ end }}
           <div class="cat-sort">
             <label for="sort" class="sr-only">Sort products</label>
             <select id="sort" aria-label="Sort products">
@@ -69,13 +88,15 @@
                  data-category="{{ index .Item.Categories 0 }}"
                  data-price="{{ .Price.Units }}"
                  data-name="{{ .Item.Name }}"
-                 data-id="{{ .Item.Id }}">
+                 data-id="{{ .Item.Id }}"
+                 data-stock="{{ .Stock.Stock }}">
           <div class="vpc-media-wrap">
             <a class="vpc-media" href="{{ $.baseUrl }}/product/{{ .Item.Id }}" aria-label="{{ .Item.Name }}">
-              <img loading="lazy" src="{{ $.baseUrl }}{{ .Item.Picture }}" alt="{{ .Item.Name }}">
+              <img loading="lazy" decoding="async" src="{{ $.baseUrl }}{{ .Item.Picture }}" alt="{{ .Item.Name }}">
               <span class="vpc-view">View Product</span>
             </a>
-            <button class="vpc-wish" type="button" data-id="{{ .Item.Id }}" aria-label="Save {{ .Item.Name }} to wishlist" aria-pressed="false">
+            {{ if eq .Stock.Stock "out" }}<span class="vpc-soldout">Sold out</span>{{ end }}
+            <button class="vpc-wish" type="button" data-id="{{ .Item.Id }}" data-name="{{ .Item.Name }}" aria-label="Save {{ .Item.Name }} to wishlist" aria-pressed="false">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 21s-7.55-4.6-10-9.17C.3 8.36 2.02 5 5.3 5c2.02 0 3.35 1.23 4.7 3.02C11.35 6.23 12.68 5 14.7 5 17.98 5 19.7 8.36 22 11.83 19.55 16.4 12 21 12 21z"/></svg>
             </button>
           </div>
@@ -83,6 +104,7 @@
             <span class="vpc-cat" data-cat="{{ index .Item.Categories 0 }}"></span>
             <a class="vpc-name" href="{{ $.baseUrl }}/product/{{ .Item.Id }}">{{ .Item.Name }}</a>
             <div class="vpc-price">{{ renderMoney .Price }}</div>
+            {{ if .Stock.Stock }}<span class="vpc-stock" data-stock="{{ .Stock.Stock }}">{{ .Stock.Label }}</span>{{ end }}
           </div>
         </article>
         {{ end }}

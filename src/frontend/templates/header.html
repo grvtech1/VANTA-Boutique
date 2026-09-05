@@ -11,6 +11,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="theme-color" content="#0a0a0f">
     <title>VANTA — Premium Lifestyle Store</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +24,7 @@
     <link rel='shortcut icon' type='image/x-icon' href='{{ $.baseUrl }}/static/favicon.ico' />
 </head>
 
-<body>
+<body data-base-url="{{ $.baseUrl }}" data-wishlist="{{ if $.wishlist_server }}server{{ else }}local{{ end }}">
     <header>
         {{ if $.frontendMessage }}
         <div class="navbar">
@@ -44,7 +45,7 @@
                         <div class="h-control">
                             <span class="icon currency-icon"> {{ renderCurrencyLogo $.user_currency}}</span>
                             <form method="POST" class="controls-form" action="{{ $.baseUrl }}/setCurrency" id="currency_form" >
-                                <select name="currency_code" onchange="document.getElementById('currency_form').submit();">
+                                <select name="currency_code" aria-label="Currency" onchange="document.getElementById('currency_form').submit();">
                                         {{range $.currencies}}
                                     <option value="{{.}}" {{if eq . $.user_currency}}selected="selected"{{end}}>{{.}}</option>
                                     {{end}}
@@ -60,7 +61,7 @@
                     </a>
                     {{ end }}
 
-                    <a href="{{ $.baseUrl }}/#wishlist" class="cart-link" title="Wishlist" id="wish-header">
+                    <a href="{{ $.baseUrl }}/#wishlist" class="cart-link" title="Saved items" id="wish-header">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.8);"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
                         <span class="cart-size-circle wish-size-circle" id="wish-count" hidden></span>
                     </a>
