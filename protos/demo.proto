@@ -304,3 +304,77 @@ message AddReviewRequest {
 message AddReviewResponse {
     Review review = 1;
 }
+
+// -----------------Wishlist service-----------------
+// Server-side "saved items" keyed by the shopper's session, so a wishlist
+// survives a cleared browser and follows the session across devices that
+// share it. The storefront falls back to localStorage when this service is
+// not configured.
+
+service WishlistService {
+    rpc AddItem(AddWishlistItemRequest) returns (Wishlist) {}
+    rpc RemoveItem(RemoveWishlistItemRequest) returns (Wishlist) {}
+    rpc GetWishlist(GetWishlistRequest) returns (Wishlist) {}
+}
+
+message WishlistItem {
+    string product_id = 1;
+    // When the item was saved, as a Unix epoch (seconds).
+    int64 added_at_unix = 2;
+}
+
+message Wishlist {
+    string user_id = 1;
+    // Most recently saved first.
+    repeated WishlistItem items = 2;
+}
+
+message AddWishlistItemRequest {
+    string user_id = 1;
+    string product_id = 2;
+}
+
+message RemoveWishlistItemRequest {
+    string user_id = 1;
+    string product_id = 2;
+}
+
+message GetWishlistRequest {
+    string user_id = 1;
+}
+
+// -----------------Inventory service-----------------
+// Stock levels per product. Read-only from the storefront's point of view:
+// the product page and catalog show "in stock / only N left / sold out".
+
+service InventoryService {
+    rpc GetStock(GetStockRequest) returns (StockLevel) {}
+    rpc ListStock(ListStockRequest) returns (ListStockResponse) {}
+}
+
+enum StockStatus {
+    IN_STOCK = 0;
+    LOW_STOCK = 1;
+    OUT_OF_STOCK = 2;
+}
+
+message StockLevel {
+    string product_id = 1;
+    int32 quantity = 2;
+    // Quantities at or below this threshold are reported as LOW_STOCK.
+    int32 low_stock_threshold = 3;
+    StockStatus status = 4;
+}
+
+message GetStockRequest {
+    string product_id = 1;
+}
+
+message ListStockRequest {
+    // Empty means every product the service knows about.
+    repeated string product_ids = 1;
+}
+
+message ListStockResponse {
+    repeated StockLevel levels = 1;
+}
