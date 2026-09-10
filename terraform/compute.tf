@@ -180,6 +180,9 @@ resource "aws_instance" "k8s_master" {
   # Master gets its own user_data with swap pre-configured
   # This prevents OOM freezes on t3.small (2GB RAM) when running
   # control plane + ArgoCD + monitoring simultaneously
+  # S3 write for scheduled etcd backups — aws CLI reads creds from IMDS, no static keys on the node.
+  iam_instance_profile = aws_iam_instance_profile.etcd_backup.name
+
   user_data = local.master_user_data
 
   root_block_device {
