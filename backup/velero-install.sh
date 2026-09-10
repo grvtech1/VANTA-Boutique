@@ -11,12 +11,17 @@ CREDS="${VELERO_CREDENTIALS:-$(dirname "$0")/velero-credentials}"
 [ -f "$CREDS" ] || { echo "missing $CREDS — copy velero-credentials.example and fill it in (never commit it)" >&2; exit 1; }
 
 echo "== install velero (S3: $BUCKET, $REGION) =="
+# Storage is local-path (not EBS CSI), so EBS volume snapshots don't apply — back up PV
+# contents with the node-agent (file-system backup) instead. --default-volumes-to-fs-backup
+# opts every pod volume into FSB without per-pod annotations.
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.10.0 \
   --bucket "$BUCKET" \
   --backup-location-config region="$REGION" \
-  --snapshot-location-config region="$REGION" \
+  --use-volume-snapshots=false \
+  --use-node-agent \
+  --default-volumes-to-fs-backup \
   --secret-file "$CREDS"
 
 echo; echo "== schedule: every 6h, keep 48h, namespace $NS =="
