@@ -85,7 +85,7 @@ locals {
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
 
     apt-get update -qq
-    apt-get install -y -qq kubelet kubeadm kubectl
+    apt-get install -y -qq -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" kubelet kubeadm kubectl
     apt-mark hold kubelet kubeadm kubectl
 
     systemctl enable kubelet
@@ -156,7 +156,7 @@ locals {
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
 
     apt-get update -qq
-    apt-get install -y -qq kubelet kubeadm kubectl
+    apt-get install -y -qq -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" kubelet kubeadm kubectl
     apt-mark hold kubelet kubeadm kubectl
 
     systemctl daemon-reload
