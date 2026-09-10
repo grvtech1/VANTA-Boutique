@@ -106,7 +106,7 @@ func main() {
 
 	serveErr := make(chan error, 1)
 	go func() {
-		log.Infof("Reviews Service listening on port %s", cfg.port)
+		log.Infof("Reviews Service v2 listening on port %s", cfg.port)
 		healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 		if err := srv.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			serveErr <- err
