@@ -38,6 +38,7 @@ locals {
   common_user_data = <<-USERDATA
     #!/bin/bash
     set -euxo pipefail
+    export DEBIAN_FRONTEND=noninteractive   # keep existing conffiles non-interactively (fixes dpkg /etc/default/kubelet abort)
 
     # ─── Disable swap (K8s requirement) ───
     swapoff -a
@@ -96,6 +97,7 @@ locals {
   master_user_data = <<-USERDATA
     #!/bin/bash
     set -euxo pipefail
+    export DEBIAN_FRONTEND=noninteractive   # keep existing conffiles non-interactively (fixes dpkg /etc/default/kubelet abort)
 
     # ─── Setup 2GB swap FIRST (before K8s) ───
     # t3.small has only 2GB RAM. Control plane + ArgoCD + monitoring = ~3.5GB
