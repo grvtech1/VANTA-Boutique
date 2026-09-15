@@ -14,33 +14,33 @@ components:
 
 images:
   - name: docker.io/grvp1/adservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/cartservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/checkoutservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/currencyservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/emailservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/frontend
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/inventoryservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/loadgenerator
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/paymentservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/productcatalogservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/recommendationservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/reviewsservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/shippingservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
   - name: docker.io/grvp1/wishlistservice
-    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+    newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
 
 replicas:
   - name: adservice
