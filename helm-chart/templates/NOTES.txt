@@ -13,5 +13,5 @@ Or port-forward:
     kubectl port-forward -n {{ .Release.Namespace }} svc/{{ .Values.frontend.name }} 8080:80   → http://localhost:8080
 
 {{- if .Values.reviewsService.create }}
-Reviews service: {{ .Values.reviewsService.replicas }} replica(s), store = {{ ternary "PostgreSQL" "in-memory" .Values.reviewsService.database.enabled }}.
+Reviews service: {{ .Values.reviewsService.replicas }} replica(s), store = {{ ternary "MySQL" "in-memory" .Values.reviewsService.database.enabled }}.
 {{- end }}

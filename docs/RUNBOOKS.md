@@ -52,19 +52,20 @@ kubectl rollout undo deployment/frontend -n boutique
    the scheduler stops waiting. On EC2 check the instance status / EIP.
 4. Gotcha: a `minAvailable: 1` PDB on a **single-replica** Deployment blocks `drain` forever.
 
-## reviews-db down
+## reviews-mysql down
 
 **Alert:** `ReviewsDatabaseDown` · reviewsservice health follows DB connectivity, so its pods
 go NotReady and the frontend hides reviews (the rest of the store keeps working).
 
 ```sh
 kubectl get pods,pvc -n boutique -l app=reviews-db
-kubectl describe pvc reviews-db -n boutique       # Pending? → no default StorageClass
-kubectl logs deploy/reviews-db -n boutique
+kubectl describe pvc reviews-mysql -n boutique       # Pending? → no default StorageClass
+kubectl logs deploy/reviews-mysql -n boutique
 ```
 No StorageClass on a fresh kubeadm cluster is the classic cause — install a provisioner
-(e.g. rancher local-path) or set `storageClassName` explicitly. Restore data with Velero
-(`velero restore create --from-backup <name>`).
+(e.g. rancher local-path) or set `storageClassName` explicitly. Restore only from a
+verified MySQL backup or application-consistent snapshot. A PostgreSQL backup
+cannot be restored directly into MySQL; see [database cutover](REVIEWS_MYSQL_MIGRATION.md).
 
 ## HPA maxed out
 
@@ -97,7 +98,7 @@ Stuck challenge → the HTTP-01 path must be reachable on port 80 through the In
 
 ```sh
 velero backup create drill-$(date +%F) --include-namespaces boutique
-kubectl delete deploy reviews-db -n boutique               # simulate loss
+kubectl delete deploy reviews-mysql -n boutique               # simulate loss
 velero restore create --from-backup drill-$(date +%F)
 kubectl get pods -n boutique -w
 ```

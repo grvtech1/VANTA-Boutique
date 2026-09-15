@@ -10,7 +10,7 @@ resources:
 
 components:
   - ../../components/pod-disruption-budgets
-  - ../../components/reviews-persistence   # durable Postgres store → reviewsservice can run 2 replicas
+  - ../../components/reviews-persistence   # durable MySQL store → reviewsservice can run 2 replicas
 
 images:
   - name: docker.io/grvp1/adservice

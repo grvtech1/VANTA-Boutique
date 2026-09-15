@@ -6,14 +6,14 @@ kustomize/
 ├── overlays/
 │   ├── dev/          kind / single node · namespace boutique · NodePort 30080 · floating `latest` tags
 │   ├── kind-ingress/ dev + nginx Ingress (http://vanta.local)
-│   ├── staging/      namespace boutique-staging · 2 replicas · Postgres reviews · SHA tags bumped by CD
-│   └── prod/         namespace boutique · 3 replicas · netpol + PDB + Postgres + Ingress + TLS · SHA tags via promote.sh
+│   ├── staging/      namespace boutique-staging · 2 replicas · MySQL reviews · SHA tags bumped by CD
+│   └── prod/         namespace boutique · 3 replicas · netpol + PDB + MySQL + Ingress + TLS · SHA tags via promote.sh
 ├── components/   opt-in slices, composable in any overlay
 │   ├── ingress/               nginx Ingress with rate limits
 │   ├── tls/                   cert-manager ClusterIssuer + TLS patch on the Ingress
 │   ├── network-policies/      default-deny + explicit allow per service (incl. reviews-db)
 │   ├── pod-disruption-budgets/ PDBs for multi-replica services
-│   ├── reviews-persistence/   Postgres + PVC + Secret for reviewsservice
+│   ├── reviews-persistence/   MySQL + PVC + Secret for reviewsservice
 │   ├── redis-persistence/     PVC-backed Redis cart
 │   ├── service-mesh-istio/    Istio gateway variant
 │   ├── tracing/               Jaeger + OpenTelemetry collector

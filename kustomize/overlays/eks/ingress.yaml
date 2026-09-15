@@ -1,0 +1,62 @@
+# =============================================================================
+# ALB Ingress — AWS Load Balancer Controller
+# =============================================================================
+# WHY ALB and not nginx Ingress?
+#   On the kubeadm cluster we run nginx Ingress on NodePort 30080 and expose
+#   it via a security group rule. On EKS:
+#     - NodePort works but means traffic enters the cluster via instance IPs —
+#       you'd need an NLB or manual DNS for HA.
+#     - ALB Ingress is the idiomatic EKS path: the AWS LB Controller reads this
+#       Ingress resource and provisions a REAL Application Load Balancer in AWS,
+#       spread across public subnets, with health checks, access logs, and WAF
+#       integration built in. Target-type=ip routes directly to pod IPs (no
+#       kube-proxy hop) — only possible because EKS uses VPC CNI.
+#
+# PREREQUISITE: AWS Load Balancer Controller must be running in kube-system.
+#   Install it via scripts/eks-addons.sh before applying this overlay.
+#
+# Cost note: ALB costs ~$0.008/hr + $0.008/LCU. Minimal for lab traffic.
+#
+# To add HTTPS later:
+#   1. Create an ACM certificate for your domain.
+#   2. Add annotation: alb.ingress.kubernetes.io/certificate-arn: <arn>
+#   3. Change listen-ports to '[{"HTTPS":443}]'
+#   4. Add redirect: alb.ingress.kubernetes.io/actions.ssl-redirect: ...
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: boutique
+  annotations:
+    # internet-facing = public subnets, external clients.
+    # Use "internal" for an intranet ALB behind a VPN.
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # target-type=ip: ALB routes directly to pod IPs (VPC CNI makes this
+    # possible). "instance" mode would route to NodePort — less efficient.
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # Open port 80 for HTTP. Add {"HTTPS":443} once you have an ACM cert.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+
+    # Health check path — the frontend's / returns 200 when healthy.
+    alb.ingress.kubernetes.io/healthcheck-path: /
+
+    # ALB Controller reads the VPC and subnets from the IRSA role + cluster tags.
+    # No explicit subnet annotation needed if the VPC subnets have the right tags
+    # (kubernetes.io/role/elb=1 on public subnets — set by terraform-eks/main.tf).
+spec:
+  ingressClassName: alb   # selects the AWS LB Controller (installed by eks-addons.sh)
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+# NOTE: No `host:` field — the ALB DNS name is auto-assigned by AWS.
+#   After apply: kubectl get ingress -n boutique
+#   The ADDRESS column shows the ALB DNS (e.g. k8s-boutique-xxxx.ap-south-1.elb.amazonaws.com)

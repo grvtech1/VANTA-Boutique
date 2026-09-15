@@ -160,12 +160,12 @@ additionalPrometheusRulesMap:
       - name: boutique.reviews
         rules:
           - alert: ReviewsDatabaseDown
-            expr: kube_deployment_status_ready_replicas{namespace=~"boutique.*", deployment="reviews-db"} == 0
+            expr: kube_deployment_status_ready_replicas{namespace=~"boutique.*", deployment="reviews-mysql"} == 0
             for: 2m
             labels: { severity: critical, team: sre }
             annotations:
-              summary: "reviews-db has no ready replica in {{ $labels.namespace }} — reviews will fail health checks"
-              runbook: docs/RUNBOOKS.md#reviews-db-down
+              summary: "reviews-mysql has no ready replica in {{ $labels.namespace }} — reviews will fail health checks"
+              runbook: docs/RUNBOOKS.md#reviews-mysql-down
       - name: boutique.pod.health
         rules:
           - alert: PodCrashLooping

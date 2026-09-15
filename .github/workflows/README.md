@@ -4,7 +4,7 @@
 git push (main / feature / PR)
    │
    ▼
-ci-pipeline.yml ─ go vet + unit tests (4 Go services) → reviews -race tests (Postgres)
+ci-pipeline.yml ─ go vet + unit tests (4 Go services) → reviews -race tests (MySQL)
                   → build ALL 14 images → Trivy CRITICAL gate (blocking) + HIGH report
                   → CycloneDX SBOM per image → kustomize + helm render validation
    │  (main only, on success)

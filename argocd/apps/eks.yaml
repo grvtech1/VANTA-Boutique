@@ -1,0 +1,41 @@
+# EKS: MANUAL SYNC by default.
+# Unlike staging (auto-sync on every commit), the EKS cluster is a separate
+# AWS environment with real EBS volumes and ALB cost. Require a deliberate
+# human sync so an accidental push doesn't bill unexpectedly.
+#
+# To auto-sync (e.g. once you use this as your staging EKS cluster):
+#   uncomment the `automated:` block below and remove this comment.
+#
+# PREREQUISITE: ArgoCD in THIS cluster must be installed first:
+#   KUBECONFIG=<eks-kubeconfig> scripts/setup-argocd.sh
+# Then register this app:
+#   kubectl apply -f argocd/apps/eks.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vanta-boutique-eks
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/grvtech1/VANTA-Boutique.git
+    targetRevision: main
+    path: kustomize/overlays/eks
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique
+  syncPolicy:
+    # automated:       # uncomment to enable auto-sync on the EKS cluster
+    #   prune: true
+    #   selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

@@ -12,7 +12,7 @@ resources:
 components:
   - ../../components/network-policies       # default-deny + per-service allow lists
   - ../../components/pod-disruption-budgets # survive node drains
-  - ../../components/reviews-persistence    # durable Postgres reviews store
+  - ../../components/reviews-persistence    # durable MySQL reviews store
   - ../../components/ingress                # nginx Ingress (rate-limited)
   - ../../components/tls                    # cert-manager TLS on the Ingress
 

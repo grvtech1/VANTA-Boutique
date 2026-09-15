@@ -1,0 +1,106 @@
+# =============================================================================
+# EKS Overlay — kustomize/overlays/eks
+# =============================================================================
+# TARGET: AWS EKS managed cluster (see terraform-eks/ for the cluster itself).
+# DIFFERS from overlays/staging in three key ways:
+#   1. Namespace "boutique" (not "boutique-staging") — EKS is a separate cluster
+#      so the plain name is unambiguous.
+#   2. No frontend-external NodePort patch — ALB fronts the cluster instead.
+#      The frontend Service stays ClusterIP; ALB routes directly to pod IPs.
+#   3. Adds gp3-storageclass.yaml and ingress.yaml — EKS-specific resources
+#      that don't belong in the shared base or components.
+#
+# COMPONENTS reused from the kubeadm/staging setup (no duplication):
+#   reviews-persistence  — MySQL-backed reviewsservice (PVC uses this overlay's
+#                          default StorageClass = gp3, which is EBS CSI-backed)
+#   pod-disruption-budgets — same PDBs keep HA during node group rolling updates
+#
+# Image tags: pinned to the SAME git SHA as overlays/staging.
+#   SHA: 80cd5b81a72d63b140e813ca351c030284935002
+#   The CD pipeline (scripts/bump-image-tags.sh) MUST be updated to also commit
+#   into this overlay when promoting. Until then, manually bump tags on promote.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: boutique
+resources:
+  - namespace.yaml
+  - gp3-storageclass.yaml    # EKS needs EBS CSI StorageClass as default (see file for WHY)
+  - ingress.yaml              # ALB Ingress (replaces nginx NodePort from kubeadm setup)
+  - ../../base
+
+components:
+  - ../../components/reviews-persistence      # MySQL-backed reviews; PVC binds to gp3 on EKS
+  - ../../components/pod-disruption-budgets   # ensures HA during EKS managed node group updates
+
+# =============================================================================
+# Images — pinned to the same git SHA currently deployed in staging.
+# Update this file (or let the CD pipeline update it) on each release.
+# =============================================================================
+images:
+  - name: docker.io/grvp1/adservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/cartservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/checkoutservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/currencyservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/emailservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/frontend
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/inventoryservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/loadgenerator
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/paymentservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/productcatalogservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/recommendationservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/reviewsservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/shippingservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+  - name: docker.io/grvp1/wishlistservice
+    newTag: 80cd5b81a72d63b140e813ca351c030284935002
+
+# =============================================================================
+# Replicas — same counts as staging (2 per critical service).
+# EKS managed node group handles scheduling across 2 AZs automatically.
+# =============================================================================
+replicas:
+  - name: adservice
+    count: 2
+  - name: cartservice
+    count: 2
+  - name: checkoutservice
+    count: 2
+  - name: currencyservice
+    count: 2
+  - name: emailservice
+    count: 2
+  - name: frontend
+    count: 2
+  - name: loadgenerator
+    count: 1
+  - name: paymentservice
+    count: 2
+  - name: productcatalogservice
+    count: 2
+  - name: recommendationservice
+    count: 2
+  - name: reviewsservice
+    count: 2
+  - name: shippingservice
+    count: 2
+  - name: wishlistservice
+    count: 1   # in-memory store — single replica
+  - name: inventoryservice
+    count: 2
+
+# NOTE: No frontend-external NodePort patch here.
+#   On EKS the ALB (ingress.yaml above) is the entry point.
+#   The frontend Service remains ClusterIP — traffic enters via ALB target-type=ip.

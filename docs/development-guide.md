@@ -37,10 +37,9 @@ kubectl rollout status deployment/reviewsservice -n boutique
 
 ```sh
 cd src/reviewsservice && go vet ./... && go test -race ./...
-# Postgres-backed tests:
-docker run -d --rm --name reviews-pg -e POSTGRES_DB=reviews -e POSTGRES_USER=reviews \
-  -e POSTGRES_PASSWORD=reviews -p 5432:5432 postgres:16-alpine
-TEST_DATABASE_URL=postgres://reviews:reviews@localhost:5432/reviews?sslmode=disable go test -race ./...
+# Isolated MySQL-backed tests (run from the repository root):
+docker compose -p vanta-reviews-test -f src/reviewsservice/compose.test.yaml up --abort-on-container-exit --exit-code-from tests
+docker compose -p vanta-reviews-test -f src/reviewsservice/compose.test.yaml down -v
 ```
 
 ## 4. Render what ArgoCD would apply

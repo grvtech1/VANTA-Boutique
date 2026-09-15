@@ -128,13 +128,13 @@ recommendationService:
 reviewsService:
   create: true
   name: reviewsservice
-  # Keep 1 with the in-memory store; >1 only when database.enabled (shared Postgres).
+  # Keep 1 with the in-memory store; >1 only when database.enabled (shared MySQL).
   replicas: 1
   database:
     enabled: false
     # Secret holding the connection string, e.g. created by the kustomize reviews-persistence
-    # component: key `database-url` in Secret `reviews-db`.
-    existingSecret: reviews-db
+    # component: MySQL driver DSN in key `database-url` of Secret `reviews-mysql`.
+    existingSecret: reviews-mysql
     key: database-url
   resources:
     requests: { cpu: 50m, memory: 32Mi }

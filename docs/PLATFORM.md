@@ -78,7 +78,7 @@ kubectl get nodes -o wide     # master + 2 workers, all Ready
 > [`scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) (export `MASTER_IP`, `WORKER1_IP`,
 > `WORKER2_IP` from `terraform output` first).
 
-A fresh kubeadm cluster has **no default StorageClass** — the reviews Postgres PVC would stay
+A fresh kubeadm cluster has **no default StorageClass** — the reviews MySQL PVC would stay
 `Pending`. Install a provisioner once:
 
 ```sh
@@ -137,7 +137,7 @@ metrics. Grafana: `kubectl -n monitoring port-forward svc/kube-prom-grafana 3000
 ## 5. Reliability & security hardening
 
 `kustomize/overlays/prod` composes it all: **default-deny NetworkPolicies**, **PDBs**,
-**Postgres-backed reviews** (2 replicas + HPA), **nginx Ingress** with rate limits and
+**MySQL-backed reviews** (2 replicas + HPA), **nginx Ingress** with rate limits and
 **cert-manager TLS** (edit the host in the overlay patch and the e-mail in
 `components/tls/cluster-issuer.yaml`). Optional extras:
 

@@ -20,7 +20,7 @@ Useful values:
 | `images.repository` / `images.tag` | `docker.io/grvp1` / `latest` | all fourteen services; pin `tag` to a git SHA outside local loops |
 | `images.overrides.<svc>.{repository,tag}` | — | canary one service from a different build |
 | `reviewsService.replicas` | `1` | `>1` requires `reviewsService.database.enabled=true` (the chart refuses otherwise) |
-| `reviewsService.database.enabled` | `false` | inject `DATABASE_URL` from Secret `reviews-db` (create it, or use the kustomize component) |
+| `reviewsService.database.enabled` | `false` | inject `DATABASE_URL` from Secret `reviews-mysql` (create it, or use the kustomize component) |
 | `wishlistService.replicas` | `1` | must stay `1` — in-memory, per-pod store (the chart refuses `>1`) |
 | `inventoryService.replicas` | `2` | read-only seeded stock; scales freely |
 | `inventoryService.seed.configMap` | `""` | ConfigMap with `seed.json` (product id → quantity) to override the built-in stock |

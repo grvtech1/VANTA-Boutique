@@ -1,0 +1,44 @@
+# =============================================================================
+# StorageClass: EBS gp3 (default)
+# =============================================================================
+# WHY this file exists:
+#   On EKS, unlike the kubeadm cluster (which uses local-path-provisioner),
+#   the default StorageClass must be backed by the EBS CSI driver so that:
+#     1. PVCs (like the reviews MySQL PVC) bind to REAL EBS volumes — not
+#        hostPath, which is node-local and disappears on pod rescheduling.
+#     2. Volumes can be snapshotted by Velero's EBS snapshot plugin — no
+#        file-system backup daemon needed, unlike the kubeadm setup.
+#     3. Multi-AZ scheduling: WaitForFirstConsumer delays volume creation until
+#        a pod is scheduled, then creates the EBS in the SAME AZ — avoiding
+#        the cross-AZ volume attachment error (a very common EKS gotcha).
+#
+# WHY gp3 over gp2?
+#   gp3 delivers 3,000 IOPS baseline at ~20% lower cost than gp2. No reason
+#   to use gp2 on new clusters. The CSI driver provisions gp3 by default when
+#   type=gp3 is set here.
+#
+# WHY encrypted=true?
+#   AWS best practice and most compliance frameworks (SOC 2, PCI-DSS) require
+#   encryption at rest for any volume that might hold customer data. Always
+#   enable it — there is no performance penalty on modern EBS.
+#
+# WHY is-default-class=true?
+#   The reviews MySQL PVC in components/reviews-persistence/mysql.yaml does NOT
+#   set a storageClassName (it relies on the cluster default). This annotation
+#   makes this class the default so that PVC binds automatically without
+#   modifying the shared component.
+# =============================================================================
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com          # the aws-ebs-csi-driver addon installed by Terraform
+volumeBindingMode: WaitForFirstConsumer  # create volume in the pod's AZ — prevents cross-AZ errors
+reclaimPolicy: Retain                 # do NOT delete the EBS volume when the PVC is deleted — safety net
+allowVolumeExpansion: true            # allow resizing the volume without deleting the PVC
+parameters:
+  type: gp3
+  encrypted: "true"
+  # fsType defaults to ext4 — fine for MySQL; no need to override

@@ -47,28 +47,30 @@ jobs:
           path: src/${{ matrix.service }}/coverage.out
 
   test-reviewsservice:
-    name: "Reviews service — vet + race tests (Postgres)"
+    name: "Reviews service — vet + race tests (MySQL)"
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16-alpine
+      mysql:
+        image: mysql:8.4
         env:
-          POSTGRES_DB: reviews
-          POSTGRES_USER: reviews
-          POSTGRES_PASSWORD: reviews
-        ports: ["5432:5432"]
+          MYSQL_DATABASE: reviews
+          MYSQL_USER: reviews
+          MYSQL_PASSWORD: reviews
+          MYSQL_ROOT_PASSWORD: reviews-root-test
+        ports: ["3306:3306"]
         options: >-
-          --health-cmd "pg_isready -U reviews"
+          --health-cmd "MYSQL_PWD=reviews mysql -h 127.0.0.1 -ureviews reviews -e 'SELECT 1'"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"   # same toolchain as the Dockerfile builder
       - env:
-          TEST_DATABASE_URL: postgres://reviews:reviews@localhost:5432/reviews?sslmode=disable
+          TEST_DATABASE_URL: "reviews:reviews@tcp(127.0.0.1:3306)/reviews?charset=utf8mb4&tls=false"
+          REQUIRE_MYSQL_TESTS: "1"
         run: |
           cd src/reviewsservice
           go vet ./...

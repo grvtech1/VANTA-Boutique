@@ -50,7 +50,7 @@ restarts, CPU/memory per pod, HPA). Alertmanager → Slack `#vanta-alerts` (warn
 | `PodCrashLooping` / `PodNotReady` | warning / critical | app pods unhealthy |
 | `DeploymentReplicasMismatch` | critical | desired ≠ ready for 5m |
 | `HpaMaxedOut` | warning | autoscaler at max for 10m — capacity ceiling |
-| `ReviewsDatabaseDown` | critical | Postgres for reviews has no ready replica |
+| `ReviewsDatabaseDown` | critical | MySQL for reviews has no ready replica |
 | `NodeNotReady` / `NodeHigh*` / `NodeDiskPressure` | critical / warning | node health |
 
 Each alert links to the matching entry in [`docs/RUNBOOKS.md`](../docs/RUNBOOKS.md).
