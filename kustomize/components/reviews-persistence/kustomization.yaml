@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Opt-in component: gives reviewsservice a durable, shared PostgreSQL store.
+# Opt-in component: gives reviewsservice a durable, shared MySQL store.
 # Enable it from an overlay's `components:` list. With this enabled the store is
 # shared across pods, so reviewsservice may safely scale beyond one replica (and
 # an HPA can be added).
@@ -24,11 +24,11 @@ apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
 resources:
-  - postgres.yaml
+  - mysql.yaml
 
 patches:
   # Point reviewsservice at the database. Setting DATABASE_URL flips the service
-  # from the in-memory store to the PostgreSQL store at startup.
+  # from the in-memory store to the MySQL store at startup.
   - target:
       kind: Deployment
       name: reviewsservice
@@ -39,5 +39,5 @@ patches:
           name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: reviews-db
+              name: reviews-mysql
               key: database-url

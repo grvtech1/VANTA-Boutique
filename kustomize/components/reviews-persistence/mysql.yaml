@@ -1,0 +1,122 @@
+# Demo-only MySQL 8.4 backing store. Use externally managed credentials and
+# verified TLS for a real deployment. This single instance is NOT HA.
+# New resource/PVC names deliberately avoid mounting an old PostgreSQL volume.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: reviews-mysql
+type: Opaque
+stringData:
+  MYSQL_DATABASE: reviews
+  MYSQL_USER: reviews
+  MYSQL_PASSWORD: reviews-demo-pw
+  MYSQL_ROOT_PASSWORD: reviews-root-demo-pw
+  database-url: "reviews:reviews-demo-pw@tcp(reviews-mysql:3306)/reviews?charset=utf8mb4&tls=false"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reviews-mysql
+  labels:
+    app: reviews-db
+    database: mysql
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviews-mysql
+  labels:
+    app: reviews-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: reviews-db
+      database: mysql
+  template:
+    metadata:
+      labels:
+        app: reviews-db
+        database: mysql
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args: ["--datadir=/var/lib/mysql/data", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_bin"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef: {name: reviews-mysql, key: MYSQL_DATABASE}
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef: {name: reviews-mysql, key: MYSQL_USER}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: reviews-mysql, key: MYSQL_PASSWORD}
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: reviews-mysql, key: MYSQL_ROOT_PASSWORD}
+          ports:
+            - name: mysql
+              containerPort: 3306
+          startupProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u\"$MYSQL_USER\" \"$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: reviews-mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviews-mysql
+spec:
+  type: ClusterIP
+  selector:
+    app: reviews-db
+    database: mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

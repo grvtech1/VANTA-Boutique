@@ -1,4 +1,4 @@
-# Only valid together with components/reviews-persistence (shared Postgres store);
+# Only valid together with components/reviews-persistence (shared MySQL store);
 # with the in-memory store each replica would hold different data.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

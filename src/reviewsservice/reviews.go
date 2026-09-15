@@ -27,7 +27,7 @@ import (
 
 // Store is the persistence seam for reviews. Two implementations exist behind
 // this interface: an in-memory store (reviewStore, this file) for the zero-deps
-// demo path, and a durable PostgreSQL store (pgStore, postgres.go) for the
+// demo path, and a durable MySQL store (mysqlStore, mysql.go) for the
 // production path. Methods take a context and may return an error so the backing
 // store can honor deadlines and surface failures.
 type Store interface {
@@ -39,7 +39,7 @@ type Store interface {
 //
 // NOTE: state is per-process and NOT shared across replicas. Run reviewsservice
 // as a SINGLE replica (no HPA) when using this store; for horizontal scaling,
-// enable the PostgreSQL store (set DATABASE_URL) which all replicas share.
+// enable the MySQL store (set DATABASE_URL) which all replicas share.
 type reviewStore struct {
 	mu            sync.RWMutex
 	byProduct     map[string][]*pb.Review

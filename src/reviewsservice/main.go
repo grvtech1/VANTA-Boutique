@@ -98,7 +98,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// When the store can report connectivity (Postgres), drive the gRPC health
+	// When the store can report connectivity (MySQL), drive the gRPC health
 	// status from it so readiness reflects whether the DB is actually reachable.
 	if pinger, ok := store.(interface{ Ping(context.Context) error }); ok {
 		go watchStoreHealth(ctx, pinger, healthSrv)
@@ -139,7 +139,7 @@ func main() {
 	}
 }
 
-// mustStore selects the backing store: PostgreSQL when DATABASE_URL is set
+// mustStore selects the backing store: MySQL when DATABASE_URL is set
 // (durable, shared across replicas), otherwise an in-memory store seeded for the
 // zero-dependency demo path. A misconfigured database fails fast at startup.
 func mustStore(cfg config) Store {
@@ -149,12 +149,12 @@ func mustStore(cfg config) Store {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	pg, err := newPgStore(ctx, cfg.databaseURL, cfg.maxReviewsPerProduct)
+	db, err := newMySQLStore(ctx, cfg.databaseURL, cfg.maxReviewsPerProduct)
 	if err != nil {
-		log.Fatalf("failed to initialize PostgreSQL store: %v", err)
+		log.Fatalf("failed to initialize MySQL store: %v", err)
 	}
-	log.Info("using PostgreSQL store")
-	return pg
+	log.Info("using MySQL store")
+	return db
 }
 
 // watchStoreHealth polls the store and reflects connectivity in the gRPC health

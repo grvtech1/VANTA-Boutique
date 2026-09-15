@@ -1,4 +1,4 @@
-# Postgres for reviews: only reviewsservice may talk to it, on 5432. No egress needed.
+# MySQL for reviews: only reviewsservice may talk to it, on 3306. No egress needed.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -16,6 +16,6 @@ spec:
             matchLabels:
               app: reviewsservice
       ports:
-        - port: 5432
+        - port: 3306
           protocol: TCP
   egress: []
