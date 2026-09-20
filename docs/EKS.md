@@ -36,7 +36,7 @@ Terraform (terraform-eks/) ──▶ AWS VPC (10.10.0.0/16, 2 AZs)
 | Entry point | AWS ALB via Ingress (AWS LB Controller) | `kustomize/overlays/eks/ingress.yaml` |
 | Persistent volumes | EBS gp3 (EBS CSI addon) | `kustomize/overlays/eks/gp3-storageclass.yaml` |
 | App manifests | Kustomize overlay | `kustomize/overlays/eks/` |
-| GitOps (optional) | ArgoCD Application (manual sync) | `argocd/apps/eks.yaml` |
+| GitOps (optional) | ArgoCD Application (manual sync) | `argocd/eks/application.yaml` |
 
 ---
 
@@ -143,7 +143,7 @@ If ArgoCD is installed on the EKS cluster (`scripts/setup-argocd.sh`), register
 the EKS Application for GitOps:
 
 ```sh
-kubectl apply -f argocd/apps/eks.yaml
+kubectl apply -f argocd/eks/application.yaml
 kubectl -n argocd get applications   # vanta-boutique-eks shows OutOfSync → Sync manually
 ```
 

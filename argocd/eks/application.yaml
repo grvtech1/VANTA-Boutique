@@ -1,3 +1,6 @@
+# Lives OUTSIDE argocd/apps/ on purpose: the root app-of-apps applies everything in that
+# folder, and this Application only makes sense on an EKS cluster (gp3 StorageClass, ALB ingress).
+# Register it by hand on the EKS cluster (see docs/EKS.md).
 # EKS: MANUAL SYNC by default.
 # Unlike staging (auto-sync on every commit), the EKS cluster is a separate
 # AWS environment with real EBS volumes and ALB cost. Require a deliberate
@@ -9,7 +12,7 @@
 # PREREQUISITE: ArgoCD in THIS cluster must be installed first:
 #   KUBECONFIG=<eks-kubeconfig> scripts/setup-argocd.sh
 # Then register this app:
-#   kubectl apply -f argocd/apps/eks.yaml
+#   kubectl apply -f argocd/eks/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
