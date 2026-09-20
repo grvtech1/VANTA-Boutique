@@ -1,16 +1,17 @@
-<h1 align="center">🛍️ VANTA Boutique</h1>
+<h1 align="center">VANTA Boutique</h1>
 
 <p align="center">
-  <strong>Curated for the Bold</strong> — a premium, dark-themed cloud-native e-commerce store
-  built on a polyglot microservices architecture.
+  <strong>Curated for the Bold.</strong> A dark-themed e-commerce storefront on a polyglot gRPC
+  microservices app, with the complete delivery platform around it: Terraform, kubeadm, Argo CD,
+  GitHub Actions, Prometheus. Everything is code.
 </p>
 
 <p align="center">
-  <a href="#-architecture"><img alt="Microservices" src="https://img.shields.io/badge/architecture-microservices-7c5cff"></a>
-  <a href="#-tech-stack"><img alt="gRPC" src="https://img.shields.io/badge/RPC-gRPC-244c5a"></a>
-  <a href="/kustomize"><img alt="Kubernetes" src="https://img.shields.io/badge/orchestration-Kubernetes%20(kubeadm)-326ce5"></a>
+  <a href="#architecture"><img alt="Microservices" src="https://img.shields.io/badge/architecture-microservices-7c5cff"></a>
+  <a href="#architecture"><img alt="gRPC" src="https://img.shields.io/badge/RPC-gRPC-244c5a"></a>
+  <a href="/kustomize"><img alt="Kubernetes" src="https://img.shields.io/badge/orchestration-Kubernetes%20(kubeadm%20%7C%20EKS)-326ce5"></a>
   <a href="/terraform"><img alt="Terraform" src="https://img.shields.io/badge/IaC-Terraform-7b42bc"></a>
-  <a href="/argocd"><img alt="ArgoCD" src="https://img.shields.io/badge/GitOps-ArgoCD-ef7b4d"></a>
+  <a href="/argocd"><img alt="Argo CD" src="https://img.shields.io/badge/GitOps-Argo%20CD-ef7b4d"></a>
   <a href="/monitoring"><img alt="Observability" src="https://img.shields.io/badge/observability-Prometheus%20%2B%20Grafana-e6522c"></a>
   <a href="/.github/workflows"><img alt="CI/CD" src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088ff"></a>
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-green">
@@ -18,115 +19,74 @@
 
 ---
 
-## Overview
+## What this is
 
-**VANTA Boutique** is a web-based storefront where shoppers browse a curated catalog,
-read and write **product reviews**, save items to a wishlist, see live stock, manage a cart,
-and check out — all served by **14 independent microservices** written in **five languages**
-(Go, C#, Node.js, Python, Java) that communicate over **gRPC**.
+VANTA Boutique started as a fork of Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo)
+demo. The application is theirs; the platform around it is the work in this repo:
 
-It began as a fork of Google's *Online Boutique* and was rebuilt into a production-leaning
-DevOps showcase: a **brand-new Reviews microservice** taken end-to-end (proto → service →
-container → Kubernetes → CI/CD), a restyled **VANTA** storefront, and an automated delivery
-pipeline that builds, tests, scans, and ships every service.
+- **Three new services** written from scratch in Go: reviews (MySQL-backed), wishlist, inventory.
+- **A rebuilt storefront**: rupee-first pricing, 25-product catalog with search/filter/sort, stock
+  states, product reviews with ratings, wishlist, real product photography.
+- **A reproducible platform on AWS**: Terraform provisions the VPC and EC2 nodes, Ansible and
+  kubeadm form the cluster, Argo CD delivers by pull-based GitOps, Prometheus/Grafana/Loki
+  observe it, and etcd snapshots plus Velero back it up. An EKS variant of the same platform
+  lives alongside.
+- **A CI/CD pipeline** that tests, builds and scans all 14 images on every push, gates on
+  CRITICAL CVEs, produces an SBOM per image, and promotes by committing immutable git-SHA
+  tags into the staging overlay. CI never holds cluster credentials.
 
-### What this fork adds on top of the upstream demo
-
-- 🆕 **Reviews microservice** (`reviewsservice`, Go/gRPC) — `GetReviews` + `AddReview`, with a
-  pluggable **`Store` interface**: a bounded, concurrency-safe **in-memory** store by default,
-  or a durable, shared **MySQL** store (go-sql-driver/mysql) for multi-replica deployments.
-- 🆕 **Wishlist microservice** (`wishlistservice`, Go/gRPC) — saved items keyed by the
-  shopper's session, so the ♥ list survives a cleared browser. Idempotent add/remove, bounded
-  per user and in total; the storefront falls back to `localStorage` when it is not deployed.
-- 🆕 **Inventory microservice** (`inventoryservice`, Go/gRPC) — stock levels behind
-  "In stock", "Only 3 left" and "Sold out" on the catalog and product pages, an
-  "In stock only" filter, and a disabled Add-to-Cart when sold out. Seeded from a built-in
-  table or a mounted ConfigMap (`INVENTORY_SEED_FILE`) — change stock without a rebuild.
-- 🇮🇳 **Rupee-first pricing** — INR is the default currency with the ₹ symbol and Indian
-  digit grouping (`₹1,29,999.00`); every other currency keeps its own grouping and yen
-  drops the decimals.
-- ✨ **Storefront polish** — scroll-reveal cards, blur-up images, a hover zoom lens and
-  sticky gallery on the product page, quantity stepper, toasts for wishlist actions,
-  trust strip (delivery / returns / secure checkout), and a reviews section with a rating
-  distribution, sort, star picker and "helpful" votes — all with `prefers-reduced-motion`
-  respected.
-- 🎨 **VANTA storefront** — a curated **25-product catalog across 6 categories** with a live
-  **category filter, search, and sort**, a **localStorage wishlist**, "New" badges, and
-  **real product photography** (bundled Unsplash imagery, self-contained — no runtime CDN
-  dependency; a few items use original branded SVG tiles). Reviews on the product page
-  (★ ratings, write-a-review form), rendered with
-  accessibility (`aria-label`, semantic `<article>`/`<time>`) and **schema.org JSON-LD**
-  (`AggregateRating`/`Review`) for rich search snippets.
-- 🛡️ **Production hardening** — graceful shutdown (`SIGTERM` → drain), gRPC message-size &
-  keepalive limits, input validation/length caps, DB-connectivity-driven **gRPC health**, a
-  `nonroot` distroless image, and a dedicated **NetworkPolicy**.
-- ⚙️ **CI/CD** — GitHub Actions: `go vet` + unit tests across the Go services, **race-detector
-  tests** with a MySQL service container, Docker builds of **all 14 services**, a **Trivy
-  CRITICAL gate** (scan what ships), a **CycloneDX SBOM** per image, and Kustomize/Helm render
-  validation. On `main`, CD pushes **immutable git-SHA images** and **commits the tags into the
-  staging overlay** — pull-based GitOps, CI never touches the cluster.
-- 🧹 **Cloud-neutral by construction** — every image runs from this repo's own registry
-  namespace (`docker.io/grvp1`, no upstream or cloud-provider registry at runtime), and the
-  provider-specific SDKs the demo shipped with (Cloud Profiler, GCE metadata detection,
-  AlloyDB/Spanner/Secret Manager stores) were removed from the services. Fewer dependencies
-  → smaller images and a smaller CVE surface for the scan gate.
-- ☸️ **Self-managed platform on AWS** — the whole stack is reproducible from code:
-  **Terraform** provisions a VPC + 3 EC2 nodes, **Ansible** + `kubeadm` form the cluster,
-  **ArgoCD** delivers via pull-based GitOps, and **Prometheus/Grafana/Loki** provide
-  observability. See **[Platform & DevOps](#-platform--devops)** below.
+The storefront is 14 services in five languages (Go, C#, Node.js, Python, Java) talking gRPC.
 
 ## Screenshots
 
-| Landing — *Curated for the Bold* | Catalog — *25 products · 6 categories · filter, search & sort* |
-| --- | --- |
-| ![VANTA landing hero](/docs/screenshots/hero-landing.png) | ![VANTA product catalog](/docs/screenshots/product-catalog.png) |
-
-| Product detail | Cart & checkout | Order confirmed |
+| Landing | Catalog: 25 products, 6 categories, filter/search/sort | Product detail with reviews |
 | --- | --- | --- |
-| ![VANTA product detail](/docs/screenshots/product-detail.png) | ![VANTA sold-out product](/docs/screenshots/product-soldout.png) | ![VANTA cart and checkout](/docs/screenshots/cart-checkout.png) | ![VANTA order confirmation](/docs/screenshots/order-confirmed.png) |
+| ![Landing](/docs/screenshots/hero-landing.png) | ![Catalog](/docs/screenshots/product-catalog.png) | ![Product detail](/docs/screenshots/product-detail.png) |
 
-## 🏗 Architecture
+| Sold-out state | Cart and checkout | Order confirmed |
+| --- | --- | --- |
+| ![Sold out](/docs/screenshots/product-soldout.png) | ![Cart and checkout](/docs/screenshots/cart-checkout.png) | ![Order confirmed](/docs/screenshots/order-confirmed.png) |
 
-VANTA Boutique is a **gRPC mesh**: the Go **frontend** is the single HTTP edge, and every
-other service is an internal gRPC backend. Services are **stateless** and horizontally
-scalable; state lives in two backing stores — **Redis** (cart) and an optional
-**MySQL** (reviews). The **checkout** service acts as the orchestrator, fanning out to
-cart, catalog, currency, shipping, payment, and email to complete an order. Contracts are
-defined once as **Protocol Buffers** in [`./protos`](/protos) and code-generated per language.
+## Architecture
+
+The Go **frontend** is the only HTTP edge; every other service is an internal gRPC backend.
+Services are stateless and scale horizontally. State lives in two stores: **Redis** for the
+cart and an optional **MySQL** for reviews. **checkout** orchestrates an order by fanning out to
+cart, catalog, currency, shipping, payment and email. Contracts are Protocol Buffers in
+[`/protos`](/protos), generated per language.
 
 ```mermaid
 flowchart TD
-    user([👤 Shopper]):::ext
-    lg[loadgenerator · Py/Locust]:::ext
+    user([Shopper]):::ext
+    lg[loadgenerator<br/>Python / Locust]:::ext
 
     user -->|HTTP| fe
-    lg -. HTTP load .-> fe
+    lg -. synthetic traffic .-> fe
 
-    fe["frontend · Go<br/>(HTTP edge)"]:::edge
+    fe["frontend (Go)<br/>HTTP edge, sessions, templates"]:::edge
 
-    %% frontend fan-out (gRPC)
     fe -->|gRPC| pc[productcatalog · Go]
     fe -->|gRPC| cur[currency · Node.js]
     fe -->|gRPC| cart[cart · C#]
-    fe -->|gRPC| rec[recommendation · Py]
+    fe -->|gRPC| rec[recommendation · Python]
     fe -->|gRPC| ship[shipping · Go]
     fe -->|gRPC| ad[ad · Java]
-    fe -->|gRPC| rev["reviews · Go ⭐"]:::new
+    fe -->|gRPC| rev["reviews · Go (new)"]:::new
+    fe -->|gRPC| wish["wishlist · Go (new)"]:::new
+    fe -->|gRPC| inv["inventory · Go (new)"]:::new
     fe -->|gRPC| co[checkout · Go]
 
-    %% checkout orchestration (gRPC)
     co -->|gRPC| cart
     co -->|gRPC| pc
     co -->|gRPC| cur
     co -->|gRPC| ship
     co -->|gRPC| pay[payment · Node.js]
-    co -->|gRPC| email[email · Py]
+    co -->|gRPC| email[email · Python]
 
     rec -->|gRPC| pc
 
-    %% data stores
     cart --> redis[("Redis<br/>cart")]:::store
-    rev --> pg[("MySQL<br/>reviews · optional")]:::store
+    rev --> mysql[("MySQL<br/>reviews, optional")]:::store
 
     classDef edge  fill:#7c5cff,stroke:#fff,color:#fff;
     classDef new   fill:#9d7bff,stroke:#fff,color:#fff,stroke-width:2px;
@@ -134,147 +94,184 @@ flowchart TD
     classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
 ```
 
-> **Telemetry:** services can emit traces to an optional OpenTelemetry collector
-> (`COLLECTOR_SERVICE_ADDR`, see the `tracing` [Kustomize component](/kustomize)); omitted
-> above to keep the request path clear.
+Tracing to an OpenTelemetry collector is optional (`COLLECTOR_SERVICE_ADDR`, the `tracing`
+Kustomize component) and is left out of the diagram to keep the request path readable.
 
-| Service | Language | Description |
+| Service | Language | Role |
 | --- | --- | --- |
-| [frontend](/src/frontend) | Go | HTTP server for the website; auto-generates a session for every visitor (no login). Renders the reviews UI. |
-| [reviewsservice](/src/reviewsservice) ⭐ | Go | **New in VANTA.** Serves product reviews & aggregate ratings over gRPC; in-memory or MySQL store. |
-| [wishlistservice](/src/wishlistservice) ⭐ | Go | **New in VANTA.** Server-side saved items keyed by session; bounded in-memory store behind a `Store` seam. |
-| [inventoryservice](/src/inventoryservice) ⭐ | Go | **New in VANTA.** Stock levels (in stock / only N left / sold out); seeded from a table or a ConfigMap. |
-| [cartservice](/src/cartservice) | C# | Stores cart items in Redis and retrieves them. |
-| [productcatalogservice](/src/productcatalogservice) | Go | Provides the product list, search, and individual product lookups. |
-| [currencyservice](/src/currencyservice) | Node.js | Converts money between currencies (ECB rates). Highest-QPS service. |
-| [paymentservice](/src/paymentservice) | Node.js | Charges the (mock) credit card and returns a transaction ID. |
-| [shippingservice](/src/shippingservice) | Go | Estimates shipping cost and ships the order (mock). |
-| [emailservice](/src/emailservice) | Python | Sends the order-confirmation email (mock). |
-| [checkoutservice](/src/checkoutservice) | Go | Orchestrates cart retrieval, payment, shipping, and email. |
-| [recommendationservice](/src/recommendationservice) | Python | Recommends products based on cart contents. |
-| [adservice](/src/adservice) | Java | Serves contextual text ads. |
-| [loadgenerator](/src/loadgenerator) | Python/Locust | Continuously simulates realistic shopping traffic. |
+| [frontend](/src/frontend) | Go | HTTP server for the store; a session per visitor, no login. Renders reviews, wishlist and stock. |
+| [reviewsservice](/src/reviewsservice) | Go | **New.** Product reviews and aggregate ratings over gRPC. In-memory store by default, MySQL for multi-replica deployments, behind a `Store` interface. |
+| [wishlistservice](/src/wishlistservice) | Go | **New.** Saved items keyed by session, so the list survives a cleared browser. Bounded per user and in total; the frontend falls back to `localStorage` when it is not deployed. |
+| [inventoryservice](/src/inventoryservice) | Go | **New.** Stock levels behind "In stock", "Only 3 left" and "Sold out". Seeded from a built-in table or a mounted ConfigMap. |
+| [cartservice](/src/cartservice) | C# | Cart items in Redis. |
+| [productcatalogservice](/src/productcatalogservice) | Go | Product list, search, lookups. |
+| [currencyservice](/src/currencyservice) | Node.js | Currency conversion (ECB rates). Highest QPS. |
+| [paymentservice](/src/paymentservice) | Node.js | Mock card charge, returns a transaction ID. |
+| [shippingservice](/src/shippingservice) | Go | Mock shipping quote and shipment. |
+| [emailservice](/src/emailservice) | Python | Mock order-confirmation email. |
+| [checkoutservice](/src/checkoutservice) | Go | Orchestrates cart, payment, shipping and email. |
+| [recommendationservice](/src/recommendationservice) | Python | Recommendations from cart contents. |
+| [adservice](/src/adservice) | Java | Contextual text ads. |
+| [loadgenerator](/src/loadgenerator) | Python / Locust | Continuous synthetic shopping traffic. |
 
-> Backing stores: **Redis** (cart) and an optional **MySQL** (reviews, via the
-> `reviews-persistence` component).
+What the new services carry beyond the demo: graceful shutdown on `SIGTERM`, gRPC message-size
+and keepalive limits, input validation and length caps, DB-connectivity-driven gRPC health,
+`distroless:nonroot` images, and a NetworkPolicy each. The cloud-provider SDKs the upstream
+demo shipped with (Cloud Profiler, GCE metadata detection, AlloyDB/Spanner/Secret Manager
+stores) were removed from all services; every image is built here and runs from this repo's
+registry namespace (`docker.io/grvp1`).
 
-## 🛠 Platform & DevOps
+## Platform
 
-Beyond the app, this repo is a **complete, reproducible self-managed platform** — every layer
-is code. Nothing is clicked in a console: **Terraform** builds the infrastructure, **Ansible +
-kubeadm** form the cluster, **ArgoCD** delivers changes via pull-based GitOps, and
-**Prometheus/Grafana/Loki** close the loop with observability.
+Nothing is clicked in a console. The platform is provisioned once from code, then the
+day-to-day loop is a Git commit.
 
 ```mermaid
 flowchart LR
-    dev([👩‍💻 git push]):::ext
+    dev([git push]):::ext
 
-    subgraph ci["CI/CD · GitHub Actions"]
+    subgraph ci["GitHub Actions"]
       direction LR
-      test[test + vet] --> build[build image] --> scan[Trivy scan] --> ship[push image<br/>+ bump tag in Git]
+      test["vet + unit tests<br/>reviews -race with MySQL"] --> build["build 14 images"] --> scan["Trivy CRITICAL gate<br/>CycloneDX SBOM"] --> ship["push image:git-sha<br/>commit tag to staging overlay"]
     end
 
-    reg[("Registry")]:::store
-    gitcfg[("Git · kustomize/overlays")]:::store
+    reg[("docker.io/grvp1")]:::store
+    git[("Git<br/>kustomize/overlays")]:::store
+    s3[("S3<br/>etcd snapshots, Velero")]:::store
 
-    subgraph aws["AWS VPC 10.0.0.0/16 · ap-south-1 · Terraform"]
+    subgraph aws["AWS ap-south-1 · VPC 10.0.0.0/16 · Terraform"]
       direction TB
-      subgraph master["Master · t3.small"]
-        api["kube-apiserver + etcd"]:::edge
-        argo["ArgoCD"]:::new
-        obs["Prometheus · Grafana<br/>Alertmanager · Loki"]:::edge
+      subgraph master["master · t3.small · EIP"]
+        api["kube-apiserver · etcd<br/>kubeadm + Calico"]:::edge
+        argo["Argo CD<br/>app-of-apps"]:::argo
+        obs["Prometheus · Alertmanager<br/>Grafana · Loki"]:::edge
+        snap["etcd snapshot timer<br/>every 6h, write-only IAM role"]:::edge
       end
-      w1["Worker-1 · t3.micro<br/>(app pods)"]:::node
-      w2["Worker-2 · t3.micro<br/>(app pods)"]:::node
+      w1["worker-1 · t3.micro<br/>app pods"]:::node
+      w2["worker-2 · t3.micro<br/>app pods"]:::node
     end
 
     dev --> test
     ship --> reg
-    ship --> gitcfg
-    argo -->|watch| gitcfg
-    argo -->|sync| w1
-    argo -->|sync| w2
+    ship --> git
+    argo -->|watches| git
+    argo -->|syncs| w1
+    argo -->|syncs| w2
     reg -->|pull| w1
     reg -->|pull| w2
     obs -.->|scrape| w1
     obs -.->|scrape| w2
+    snap --> s3
 
-    classDef edge fill:#7c5cff,stroke:#fff,color:#fff;
-    classDef new  fill:#ef7b4d,stroke:#fff,color:#fff,stroke-width:2px;
-    classDef node fill:#326ce5,stroke:#fff,color:#fff;
+    classDef edge  fill:#7c5cff,stroke:#fff,color:#fff;
+    classDef argo  fill:#ef7b4d,stroke:#fff,color:#fff,stroke-width:2px;
+    classDef node  fill:#326ce5,stroke:#fff,color:#fff;
     classDef store fill:#244c5a,stroke:#fff,color:#fff;
-    classDef ext  fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
 ```
 
-**Provisioned once** — `terraform apply` (VPC, subnet, IGW, security groups, 3× EC2 with a
-`containerd`+`kubeadm` user-data bootstrap) → `ansible-playbook` (kubeadm `init`/`join` + Calico
-CNI) → `scripts/setup-argocd.sh` (install ArgoCD + register the **app-of-apps** root) → Helm-install
-the monitoring stack from `monitoring/`. **Then the day-to-day loop is automatic:** push → CI tests,
-builds, scans (gate), SBOMs → CD pushes `image:<git-sha>` and commits the tag into **staging** →
-ArgoCD syncs → rolling update. **Prod** is promoted with `scripts/promote.sh <sha>` and a manual
-ArgoCD sync. Full step-by-step in the **[Platform runbook](/docs/PLATFORM.md)**; the *why* behind
-each choice in **[Decisions](/docs/DECISIONS.md)**; incident playbooks in **[Runbooks](/docs/RUNBOOKS.md)**.
+### Release path
 
-| Layer | Tooling | Where |
+Staging is automatic; prod needs a human. Rollback in either is `git revert`.
+
+```mermaid
+flowchart LR
+    c([commit on main]):::ext --> ci["CI: test, build, scan, SBOM"]
+    ci -->|green| cd["CD: push image:sha<br/>commit tag to overlays/staging [skip ci]"]
+    cd --> st["Argo CD staging<br/>auto-sync + self-heal"]:::argo
+    st --> pr["scripts/promote.sh &lt;sha&gt;<br/>commits the same sha to overlays/prod"]
+    pr --> ps["Argo CD prod<br/>OutOfSync, manual sync"]:::argo
+    ps -->|human approves| prod[("prod")]:::store
+
+    classDef argo  fill:#ef7b4d,stroke:#fff,color:#fff;
+    classDef store fill:#244c5a,stroke:#fff,color:#fff;
+    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+```
+
+| Layer | What is here | Where |
 | --- | --- | --- |
-| **Infrastructure as Code** | Terraform — VPC, public subnet, IGW, security groups, EIP, TLS keypair, 3× EC2 (1 master + 2 workers) | [`/terraform`](/terraform) |
-| **Configuration** | Ansible — `kubeadm` cluster bootstrap + an audit playbook | [`/ansible`](/ansible) |
-| **Orchestration** | Self-managed **Kubernetes** (`kubeadm` + **Calico** CNI), Kustomize base + namespaced `dev`/`staging`/`prod` overlays + composable components | [`/scripts`](/scripts) · [`/kustomize`](/kustomize) |
-| **GitOps delivery** | **ArgoCD app-of-apps** — `staging` auto-syncs from CI-committed **git-SHA tags**; `prod` is manual sync (promote → approve), rollback = `git revert` | [`/argocd`](/argocd) · [`scripts/promote.sh`](/scripts/promote.sh) |
-| **CI/CD** | **GitHub Actions** — test, build, **Trivy CRITICAL gate**, **SBOM**, Kustomize/Helm render + `terraform-validate` gates; CD holds no cluster credentials | [`/.github/workflows`](/.github/workflows) |
-| **Ingress & TLS** | **nginx Ingress** (rate limits, timeouts) + **cert-manager** Let's Encrypt via a Kustomize `tls` component | [`/kustomize/components/ingress`](/kustomize/components/ingress) · [`tls`](/kustomize/components/tls) |
-| **Observability** | **Prometheus + Grafana + Alertmanager** — SRE rules, **availability SLO with multi-window burn-rate alerts**, severity-routed **Slack** notifications, a provisioned dashboard; **Loki** for logs | [`/monitoring`](/monitoring) |
-| **Security** | RBAC, Pod Security, **default-deny NetworkPolicies** (incl. the reviews DB), least-privilege security groups, non-root distroless images, image scan gate, **no secrets in Git** | [`/scripts`](/scripts) · [`/kustomize/components/network-policies`](/kustomize/components/network-policies) |
-| **Resilience / SRE** | **HPA** (frontend, reviews), PodDisruptionBudgets, **Velero** backups, plus **chaos** and **node-failover** drills with written **runbooks** | [`/scripts`](/scripts) · [`/backup`](/backup) · [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md) |
+| Infrastructure | Terraform: VPC, public subnet, IGW, security groups, EIP, key pair, 1 master + 2 workers, an IAM role for etcd backups | [`/terraform`](/terraform) |
+| Cluster | Ansible + kubeadm bootstrap, Calico CNI, an audit playbook | [`/ansible`](/ansible), [`scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) |
+| Manifests | Kustomize base, `dev`/`staging`/`prod`/`eks` overlays, composable components (ingress, TLS, network policies, PDBs, persistence, tracing) | [`/kustomize`](/kustomize) |
+| GitOps | Argo CD app-of-apps: staging auto-syncs from CI-committed git-SHA tags; prod is manual sync | [`/argocd`](/argocd), [`scripts/promote.sh`](/scripts/promote.sh) |
+| CI/CD | GitHub Actions: vet and tests, all 14 images, Trivy CRITICAL gate, SBOM, Kustomize and Helm render checks, `terraform validate` | [`/.github/workflows`](/.github/workflows) |
+| Ingress and TLS | nginx Ingress with rate limits and timeouts; cert-manager with Let's Encrypt | [`components/ingress`](/kustomize/components/ingress), [`components/tls`](/kustomize/components/tls) |
+| Observability | kube-prometheus-stack, 11 alert rules including a 99.5% availability SLO with multi-window burn-rate alerts, Alertmanager to Slack by severity, a Grafana dashboard, Loki | [`/monitoring`](/monitoring) |
+| Security | RBAC, Pod Security admission, default-deny NetworkPolicies with per-service allow lists, least-privilege security groups, non-root distroless images, image scan gate, no secrets in Git | [`/scripts`](/scripts), [`components/network-policies`](/kustomize/components/network-policies) |
+| Backup and DR | Git as source of truth; etcd snapshots to S3 every 6 hours from a systemd timer using a write-only IAM instance role; Velero file-system backups every 6 hours (48h retention); restore drill in the runbooks | [`scripts/etcd-backup-setup.sh`](/scripts/etcd-backup-setup.sh), [`terraform/iam-etcd-backup.tf`](/terraform/iam-etcd-backup.tf), [`/backup`](/backup) |
+| Resilience | HPA (frontend, reviews), PodDisruptionBudgets, chaos and node-failover drills with runbooks | [`/scripts`](/scripts), [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md) |
+| Packaging | A Helm chart as an alternative to the overlays, validated in CI | [`/helm-chart`](/helm-chart) |
 
-> 💡 **Cost-aware & reproducible:** the AWS footprint runs at roughly **~$1.5/day** and tears
-> down cleanly with `terraform destroy` — state, kubeconfig, and tfvars are git-ignored, never
-> committed. The same app also runs **free on local kind** (next section).
+The AWS footprint is about **$1.5/day** and tears down with `terraform destroy`. State,
+kubeconfig, tfvars and credentials are git-ignored.
 
-## 🚀 Run it locally (kind)
+### Two deployment targets
 
-The quickest way to see the full store on your machine — a local
-[kind](https://kind.sigs.k8s.io/) cluster, no cloud account required.
+| | Self-managed (primary) | EKS variant |
+| --- | --- | --- |
+| Terraform | [`/terraform`](/terraform): EC2 + kubeadm | [`/terraform-eks`](/terraform-eks): `terraform-aws-modules` VPC, EKS with access entries, managed node group, CoreDNS/kube-proxy/VPC CNI/EBS CSI add-ons, IRSA for EBS CSI and the Load Balancer Controller |
+| Entry | nginx Ingress on a NodePort/EIP | ALB via the AWS Load Balancer Controller |
+| Storage | local-path | EBS gp3 |
+| Overlay | `kustomize/overlays/{staging,prod}` | `kustomize/overlays/eks` |
+| Argo CD | `argocd/apps/*` (via the root app) | `argocd/eks/application.yaml`, registered by hand on the EKS cluster |
+| Runbook | [docs/PLATFORM.md](/docs/PLATFORM.md) | [docs/EKS.md](/docs/EKS.md) |
+
+kubeadm was chosen first to work with the control plane directly (certificates, etcd, CNI,
+StorageClass). The EKS variant reuses the same overlays and images with managed control plane
+and IAM-native access. See [docs/DECISIONS.md](/docs/DECISIONS.md) for the trade-offs.
+
+## Repository map
+
+```
+.github/workflows/   ci-pipeline, cd-pipeline, kustomize/helm/terraform validation, deps-bump
+ansible/             playbook.yml (kubeadm init/join + Calico), audit-playbook.yml
+argocd/              root.yaml (app-of-apps) · apps/{dev,staging,prod}.yaml · eks/application.yaml
+backup/              Velero install and example credentials file
+docs/                PLATFORM (runbook) · RUNBOOKS · DECISIONS · EKS · development guide · migration guides
+helm-chart/          alternative packaging, linted and rendered in CI
+kustomize/           base/ (14 services) · components/ · overlays/{dev,staging,prod,eks,local,kind-ingress} · tests/
+monitoring/          kube-prometheus-stack, Loki and ingress-nginx values; Grafana dashboard; alert rules
+protos/              gRPC contracts (demo.proto, health)
+scripts/             setup-argocd, install-ingress-nginx, promote, bump-image-tags, etcd-backup-setup,
+                     failover-lab, chaos-engineering, health-check, eks-addons
+src/                 14 services, one directory each, with Dockerfile and README
+terraform/           kubeadm cluster on EC2        terraform-eks/   EKS variant
+```
+
+## Run it locally (kind)
+
+A local [kind](https://kind.sigs.k8s.io/) cluster runs the whole store with no cloud account.
 
 ```sh
-# 1. Create a local cluster (maps NodePort 30080 → host 8888; 80/443 for the optional Ingress)
+# 1. cluster (NodePort 30080 -> host 8888; 80/443 for the optional Ingress)
 kind create cluster --config kind-local.yaml            # make kind-up
 
-# 2. Deploy the dev overlay (namespace `boutique`: all 14 services + Redis)
+# 2. dev overlay: namespace `boutique`, all 14 services + Redis
 kubectl apply -k kustomize/overlays/dev                 # make deploy
-
-# 3. Wait for everything to be Ready
 kubectl wait -n boutique --for=condition=ready pod --all --timeout=300s
 
-# 4. Open the store
-#    NodePort:      http://localhost:8888
-#    or port-forward (more robust):
-kubectl port-forward -n boutique svc/frontend 8088:80   # → http://localhost:8088
+# 3. open the store
+#    http://localhost:8888          (NodePort)
+kubectl port-forward -n boutique svc/frontend 8088:80   # or http://localhost:8088
 ```
 
-Want the real entry path (nginx Ingress with rate limits, like prod)?
+With the real entry path (nginx Ingress and rate limits, as in prod):
 
 ```sh
 scripts/install-ingress-nginx.sh --provider kind        # make ingress
 kubectl apply -k kustomize/overlays/kind-ingress
-echo "127.0.0.1 vanta.local" | sudo tee -a /etc/hosts    # → http://vanta.local
+echo "127.0.0.1 vanta.local" | sudo tee -a /etc/hosts    # http://vanta.local
 ```
 
-**Build from source** instead of pulling images, then load into kind:
+Build a service from source and load it into kind:
 
 ```sh
 docker build -t docker.io/grvp1/reviewsservice:dev src/reviewsservice
-docker build -t docker.io/grvp1/frontend:dev       src/frontend
-kind load docker-image docker.io/grvp1/reviewsservice:dev docker.io/grvp1/frontend:dev --name boutique
+kind load docker-image docker.io/grvp1/reviewsservice:dev --name boutique
 kubectl set image -n boutique deployment/reviewsservice server=docker.io/grvp1/reviewsservice:dev
-kubectl set image -n boutique deployment/frontend       server=docker.io/grvp1/frontend:dev
 ```
 
-For existing PostgreSQL deployments, read [the MySQL cutover guide](docs/REVIEWS_MYSQL_MIGRATION.md)
-first. Do not apply new database configuration with an old service image or reuse
-the old database volume. This repository change does not transfer existing data.
-
-To enable the durable **MySQL** reviews store, add the component to
+To run reviews on MySQL instead of in memory, add the component to
 `kustomize/overlays/dev/kustomization.yaml`:
 
 ```yaml
@@ -282,43 +279,44 @@ components:
   - ../../components/reviews-persistence
 ```
 
-> ☁️ For the **AWS / ArgoCD** path, Terraform, Helm, and Istio options, see the
-> [Platform runbook](/docs/PLATFORM.md), [`/kustomize`](/kustomize), [`/terraform`](/terraform),
-> and the [development guide](/docs/development-guide.md).
+If you are upgrading a deployment that used the earlier PostgreSQL store, read
+[the MySQL migration guide](docs/REVIEWS_MYSQL_MIGRATION.md) first; the image and the database
+configuration have to be cut over together.
 
-## 🧰 Tech stack
+Other paths: the [platform runbook](/docs/PLATFORM.md) for AWS, [docs/EKS.md](/docs/EKS.md)
+for EKS, [`/helm-chart`](/helm-chart) for Helm, and the
+[development guide](/docs/development-guide.md) for the inner loop.
 
-- **Languages:** Go · C# · Node.js · Python · Java
-- **Comms:** gRPC + Protocol Buffers · gRPC health protocol
-- **Data:** Redis (cart) · MySQL / go-sql-driver/mysql (reviews)
-- **Packaging:** Multi-stage Docker, `distroless:nonroot`
-- **Infrastructure:** Terraform (AWS VPC + EC2) · Ansible · self-managed Kubernetes (`kubeadm` + Calico)
-- **Orchestration:** Kubernetes · Kustomize (base + namespaced `dev`/`staging`/`prod` overlays + components) · Helm
-- **Ingress & TLS:** nginx Ingress (rate limits) · cert-manager (Let's Encrypt)
-- **CI/CD & GitOps:** GitHub Actions (vet, `-race` tests, MySQL service container, Trivy gate, CycloneDX SBOM) · ArgoCD app-of-apps · git-SHA image tags
-- **Observability:** Prometheus · Grafana · Alertmanager (Slack) · SLO burn-rate alerts · Loki
-- **Resilience:** HPA · PDB · NetworkPolicies · Velero backups · chaos & failover drills
-- **Frontend extras:** schema.org JSON-LD · accessible review components
+## Tech stack
 
-## 📚 Documentation
+- **Languages:** Go, C#, Node.js, Python, Java
+- **Comms:** gRPC and Protocol Buffers, gRPC health protocol
+- **Data:** Redis (cart), MySQL via go-sql-driver (reviews)
+- **Packaging:** multi-stage Docker, `distroless:nonroot`
+- **Infrastructure:** Terraform (AWS VPC, EC2; EKS variant with terraform-aws-modules), Ansible
+- **Orchestration:** Kubernetes (kubeadm + Calico; EKS), Kustomize base/overlays/components, Helm
+- **Ingress and TLS:** nginx Ingress, cert-manager
+- **CI/CD and GitOps:** GitHub Actions (vet, `-race` tests with a MySQL service container, Trivy gate, CycloneDX SBOM), Argo CD app-of-apps, git-SHA image tags
+- **Observability:** Prometheus, Alertmanager (Slack), Grafana, Loki, SLO burn-rate alerts
+- **Backup and resilience:** etcd snapshots to S3, Velero, HPA, PDB, NetworkPolicies, chaos and failover drills
 
-- [**Platform runbook**](/docs/PLATFORM.md) — provision AWS → form the cluster → GitOps → observability, step by step.
-- [**Runbooks**](/docs/RUNBOOKS.md) — incident playbooks: crash loops, rollback, node failover, DB down, SLO burn, TLS.
-- [**Decisions**](/docs/DECISIONS.md) — the *why* behind GitOps, SHA tags, scan gates, netpol, SLOs, kubeadm.
-- [Development guide](/docs/development-guide.md) — run and develop locally on kind.
-- [CI/CD workflows](/.github/workflows/README.md) · [Kustomize layout](/kustomize/README.md) · [Helm chart](/helm-chart/README.md) · [Monitoring](/monitoring/README.md)
-- [Reviews service](/src/reviewsservice/README.md) — API, storage modes, and configuration.
-- [Wishlist service](/src/wishlistservice/README.md) — API, bounds, and configuration.
-- [Inventory service](/src/inventoryservice/README.md) — API, seed data, and configuration.
-- [Adding a new microservice](/docs/adding-new-microservice.md) — reviewsservice as the worked example.
-- [Learning-phase lab scripts](/scripts/labs/README.md) — the minikube → AWS journey, kept honestly.
+## Documentation
 
-## Credits & license
+- [Platform runbook](/docs/PLATFORM.md): provision AWS, form the cluster, GitOps, observability, day-2.
+- [EKS runbook](/docs/EKS.md): the managed-cluster variant.
+- [Runbooks](/docs/RUNBOOKS.md): crash loops, rollback, node failover, DB down, SLO burn, TLS, restore drill.
+- [Decisions](/docs/DECISIONS.md): why GitOps, SHA tags, scan gates, network policies, SLOs, kubeadm.
+- [Development guide](/docs/development-guide.md), [CI/CD workflows](/.github/workflows/README.md), [Kustomize layout](/kustomize/README.md), [Helm chart](/helm-chart/README.md), [Monitoring](/monitoring/README.md)
+- [Reviews](/src/reviewsservice/README.md), [Wishlist](/src/wishlistservice/README.md), [Inventory](/src/inventoryservice/README.md) service READMEs
+- [Adding a new microservice](/docs/adding-new-microservice.md), with reviewsservice as the worked example
+- [Reviews: PostgreSQL to MySQL](/docs/REVIEWS_MYSQL_MIGRATION.md), including the verification run
+- [How this was built](/docs/learning-journey.md): minikube to a 3-node cluster on AWS
 
-VANTA Boutique is built on Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo)
-sample and is licensed under **Apache-2.0** (see [`LICENSE`](/LICENSE)). The Reviews
-microservice, VANTA storefront, and CI/CD pipeline are additions by this project.
+## Credits and license
 
-Product photography is courtesy of [Unsplash](https://unsplash.com) (free under the
-[Unsplash License](https://unsplash.com/license)); a handful of items use original
-branded SVG tiles.
+Built on Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo),
+Apache-2.0 (see [`LICENSE`](/LICENSE)). The reviews, wishlist and inventory services, the VANTA
+storefront, and the platform and pipeline in this repo are additions by this project.
+
+Product photography is from [Unsplash](https://unsplash.com) under the
+[Unsplash License](https://unsplash.com/license); a few items use original SVG tiles.
