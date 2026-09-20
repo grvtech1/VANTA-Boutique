@@ -32,8 +32,8 @@ demo. The application is theirs; the platform around it is the work in this repo
   observe it, and etcd snapshots plus Velero back it up. An EKS variant of the same platform
   lives alongside.
 - **A CI/CD pipeline** that tests, builds and scans all 14 images on every push, gates on
-  CRITICAL CVEs, produces an SBOM per image, and promotes by committing immutable git-SHA
-  tags into the staging overlay. CI never holds cluster credentials.
+  CRITICAL CVEs, produces an SBOM per image, and promotes by committing the git-SHA tag and
+  image digest of every image into the staging overlay. CI never holds cluster credentials.
 
 The storefront is 14 services in five languages (Go, C#, Node.js, Python, Java) talking gRPC.
 
@@ -132,7 +132,7 @@ flowchart LR
 
     subgraph ci["GitHub Actions"]
       direction LR
-      test["vet + unit tests<br/>reviews -race with MySQL"] --> build["build 14 images"] --> scan["Trivy CRITICAL gate<br/>CycloneDX SBOM"] --> ship["push image:git-sha<br/>commit tag to staging overlay"]
+      test["vet + unit tests<br/>reviews -race with MySQL"] --> build["build 14 images"] --> scan["Trivy CRITICAL gate<br/>CycloneDX SBOM"] --> ship["push image:git-sha<br/>pin tag + digest in staging overlay"]
     end
 
     reg[("docker.io/grvp1")]:::store
@@ -179,7 +179,7 @@ flowchart LR
     c([commit on main]):::ext --> ci["CI: test, build, scan, SBOM"]
     ci -->|green| cd["CD: push image:sha<br/>commit tag to overlays/staging [skip ci]"]
     cd --> st["Argo CD staging<br/>auto-sync + self-heal"]:::argo
-    st --> pr["scripts/promote.sh &lt;sha&gt;<br/>commits the same sha to overlays/prod"]
+    st --> pr["scripts/promote.sh --from-staging<br/>copies tag + digest to overlays/prod"]
     pr --> ps["Argo CD prod<br/>OutOfSync, manual sync"]:::argo
     ps -->|human approves| prod[("prod")]:::store
 
@@ -296,7 +296,7 @@ for EKS, [`/helm-chart`](/helm-chart) for Helm, and the
 - **Infrastructure:** Terraform (AWS VPC, EC2; EKS variant with terraform-aws-modules), Ansible
 - **Orchestration:** Kubernetes (kubeadm + Calico; EKS), Kustomize base/overlays/components, Helm
 - **Ingress and TLS:** nginx Ingress, cert-manager
-- **CI/CD and GitOps:** GitHub Actions (vet, `-race` tests with a MySQL service container, Trivy gate, CycloneDX SBOM), Argo CD app-of-apps, git-SHA image tags
+- **CI/CD and GitOps:** GitHub Actions (vet, `-race` tests with a MySQL service container, Trivy gate, CycloneDX SBOM), Argo CD app-of-apps, images pinned by git-SHA tag and digest
 - **Observability:** Prometheus, Alertmanager (Slack), Grafana, Loki, SLO burn-rate alerts
 - **Backup and resilience:** etcd snapshots to S3, Velero, HPA, PDB, NetworkPolicies, chaos and failover drills
 

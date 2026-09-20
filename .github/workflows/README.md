@@ -10,7 +10,8 @@ ci-pipeline.yml ─ go vet + unit tests (4 Go services) → reviews -race tests 
    │  (main only, on success)
    ▼
 cd-pipeline.yml ─ build → push docker.io/grvp1/<svc>:<git-sha> for all 14 (no :latest)
-                  → commit the SHAs into kustomize/overlays/staging  [skip ci]
+                  → resolve each image digest from the registry
+                  → commit tag + digest into kustomize/overlays/staging  [skip ci]
    │
    ▼
 ArgoCD (in cluster) ─ sees the Git change → syncs staging.  Prod: scripts/promote.sh + manual sync.

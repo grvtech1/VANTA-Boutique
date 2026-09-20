@@ -1,6 +1,6 @@
 # =============================================================================
 # CD — pull-based GitOps promotion to STAGING
-# Trigger: CI succeeded on main. Flow: build → push :<git-sha> → commit the SHA into
+# Trigger: CI succeeded on main. Flow: build → push :<git-sha> → commit the SHA + digest into
 # kustomize/overlays/staging → ArgoCD (in-cluster) notices the Git change and syncs.
 # CI holds NO cluster credentials and never calls the ArgoCD API. Prod is promoted by
 # scripts/promote.sh + a manual ArgoCD sync.
@@ -55,7 +55,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      # Immutable tag only. No `:latest` — a moving tag makes "what is running?" unanswerable.
+      # Immutable tag only, no `:latest`. The digest of what was pushed is pinned in the next job.
       - uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service.context }}
@@ -73,8 +73,8 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Bump image tags in kustomize/overlays/staging
-        run: scripts/bump-image-tags.sh kustomize/overlays/staging/kustomization.yaml "$SHA"
+      - name: Pin image tags + digests in kustomize/overlays/staging
+        run: scripts/bump-image-tags.sh kustomize/overlays/staging/kustomization.yaml "$SHA" --resolve
       - name: Commit + push (skip ci to avoid a loop)
         run: |
           set -euo pipefail
@@ -83,7 +83,7 @@ jobs:
           if git diff --quiet; then echo "staging already at $SHA"; exit 0; fi
           git add kustomize/overlays/staging/kustomization.yaml
           git commit -m "ci(gitops): promote ${SHA::7} to staging [skip ci]" \
-                     -m "Image tags pinned by CD from CI run ${{ github.event.workflow_run.id }}."
+                     -m "Image tags and digests pinned by CD from CI run ${{ github.event.workflow_run.id }}."
           for i in 1 2 3; do
             git push && exit 0
             git pull --rebase origin main
