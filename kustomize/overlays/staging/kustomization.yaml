@@ -15,33 +15,47 @@ components:
 images:
   - name: docker.io/grvp1/adservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:9418fc301f9921bb95a4e93ae9914b8a6cf73e9e533f9487610de2f386fcb815
   - name: docker.io/grvp1/cartservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:16a80db72467aab9ea78e7757ea4499018c6b241b6154cbfe5679f5343890944
   - name: docker.io/grvp1/checkoutservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:63046dcfb5e9ff1956f5b2015a6ccd403c0ddb2ab0ea54eb13e04580541138e8
   - name: docker.io/grvp1/currencyservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:1785939a1fc09936ae17d57408c16c3647ed93e090c780c27bbd06288599a6df
   - name: docker.io/grvp1/emailservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:66dda09c58f1701afb2b6c4598d45aae0feb074bb2f33047c608ca5e662d5eb2
   - name: docker.io/grvp1/frontend
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:cea86c19277e2aac926de24ded8d84aafec4a491d6c67da5903fe633c764145f
   - name: docker.io/grvp1/inventoryservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:24a7c996efcc28224eddb1ed279fd358e89cc1a9294e080dbfaf7325c7c307a0
   - name: docker.io/grvp1/loadgenerator
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:9ec01f42f38eb856f39d1513cd613c3954ad699dacec7568cdfcaabf2dbab0c4
   - name: docker.io/grvp1/paymentservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:91752d7f1de156fbc8c7e9aff1da4c86f05e98e2829a9d01960b7afa8ace0870
   - name: docker.io/grvp1/productcatalogservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:5ba6116269deaeab99013d1ad5234281d68b983ab0e671d57cf34daa91bc2ea7
   - name: docker.io/grvp1/recommendationservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:610c53c430b6cf98460f6f8c65ba9d148591b01e646efa5bc0f9bae8e8e67011
   - name: docker.io/grvp1/reviewsservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:90316d5af1859e117327603201a4187455a447c2f6b842f82259244fb4c84451
   - name: docker.io/grvp1/shippingservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
+    digest: sha256:1e5a3fbe4cff016006bf1b93cde83574bafa21286077f688baa17bf20d2aaad0
   - name: docker.io/grvp1/wishlistservice
     newTag: eead6a22bf2bdb4d0816a4653db84520ddda2153
 
+    digest: sha256:49114cd81e1cb8c1516038b918d17d55d54957733c2b74f0dec0e23df753a863
 replicas:
   - name: adservice
     count: 2
