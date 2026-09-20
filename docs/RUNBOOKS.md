@@ -1,4 +1,4 @@
-# 🚑 Runbooks
+# Runbooks
 
 Incident playbooks for VANTA Boutique. Every alert in `monitoring/` links here. The order is
 always the same: **confirm scope → what changed? → mitigate → then root-cause.**
@@ -101,4 +101,12 @@ velero backup create drill-$(date +%F) --include-namespaces boutique
 kubectl delete deploy reviews-mysql -n boutique               # simulate loss
 velero restore create --from-backup drill-$(date +%F)
 kubectl get pods -n boutique -w
+```
+
+**Backups silently stopped after rotating the Velero credentials?** The node-agent DaemonSet
+keeps the credentials it started with. Restart it and re-run a backup:
+
+```sh
+kubectl -n velero rollout restart ds/node-agent
+velero backup create check-$(date +%F) --include-namespaces boutique --wait
 ```
