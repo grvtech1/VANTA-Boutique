@@ -1,5 +1,5 @@
 # =============================================================================
-# Phase 7: Chaos Engineering - Break Things on Purpose
+# Chaos drill: kill pods on purpose and verify the store self-heals (staging only)
 # =============================================================================
 # WHAT IS CHAOS ENGINEERING?
 #   Netflix pioneered this with "Chaos Monkey" - randomly killing production

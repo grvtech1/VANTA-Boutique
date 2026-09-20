@@ -1,4 +1,4 @@
-# 🛠 VANTA Platform Runbook
+# VANTA platform runbook
 
 How to stand up VANTA Boutique on a **self-managed Kubernetes cluster on AWS** — from empty
 cloud account to a GitOps-delivered, observable production platform — and how to run it day-2.

@@ -1,5 +1,5 @@
 # =============================================================================
-# Phase 4: Install Metrics Server + Configure HPA
+# Install metrics-server and configure HPA
 # =============================================================================
 # WHY METRICS-SERVER?
 #   HPA needs real-time CPU/memory data to decide when to scale.

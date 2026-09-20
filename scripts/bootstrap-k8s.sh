@@ -2,7 +2,7 @@
 # =============================================================================
 # K8s Cluster Bootstrap via SSH — Ansible-style but no Ansible needed
 # =============================================================================
-# Run this from WSL terminal: bash ~/online-boutique/scripts/bootstrap-k8s.sh
+# Run from the repo root: bash scripts/bootstrap-k8s.sh
 # =============================================================================
 
 set -e

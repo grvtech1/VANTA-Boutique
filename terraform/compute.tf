@@ -2,9 +2,9 @@
 # EC2 INSTANCES — Your Kubernetes Servers
 # =============================================================================
 # Architecture:
-#   Master (t3.medium) — Runs K8s control plane (API server, etcd, scheduler)
-#   Worker-1 (t3.medium) — Runs your application pods
-#   Worker-2 (t3.medium) — Runs your application pods (HA)
+#   Master  (var.master_instance_type, default t3.small)  - control plane: API server, etcd, scheduler
+#   Worker-1 (var.worker_instance_type, default t3.micro)  - application pods
+#   Worker-2 (var.worker_instance_type, default t3.micro)  - application pods
 #
 # AMI: Ubuntu 22.04 LTS — Most common OS for K8s in production
 # =============================================================================

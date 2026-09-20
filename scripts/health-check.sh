@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# SRE Health Check Script - Online Boutique
+# Health check: cluster and application status summary
 # =============================================================================
 # WHAT: Validates all deployed services are healthy
 # WHEN: Run after deployment, during incident response, or via cron

@@ -1,5 +1,5 @@
 # =============================================================================
-# Phase 6: RBAC (Role-Based Access Control)
+# RBAC: least-privilege roles, bindings and service accounts
 # =============================================================================
 # WHAT IS RBAC?
 #   "WHO can do WHAT on WHICH resources"
