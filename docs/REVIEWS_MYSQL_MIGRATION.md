@@ -1,77 +1,103 @@
 # Reviews: PostgreSQL to MySQL
 
-This revision changes the reviews service implementation and deployment defaults
-to MySQL 8.4. It does not migrate an existing database, publish an image, or change
-a running cluster. The gRPC API and Docker Hub registry remain unchanged.
+The reviews service and its deployment defaults moved from PostgreSQL to MySQL 8.4 so that the
+platform runs one database engine. This change does not migrate an existing database, publish
+an image, or touch a running cluster on its own. The gRPC API and the registry are unchanged.
 
 ## Compatibility boundary
 
-- The service uses `database/sql` and `go-sql-driver/mysql`. `DATABASE_URL` now
-  contains a MySQL driver DSN, not the old PostgreSQL connection URL.
-- Without a DSN, the existing single-replica in-memory mode remains available.
-- PostgreSQL's UUID type becomes an ASCII UUID string; existing UUID values and
-  Unix timestamps can be preserved during a separately reviewed data transfer.
-- The MySQL table uses InnoDB and `utf8mb4_0900_bin`: product IDs remain
-  case-sensitive and trailing-space-sensitive. Comments support Unicode.
-- The existing return limit remains; MySQL does not delete older rows automatically.
-- The API still validates ratings and field lengths. The database additionally
-  enforces ratings between 1 and 5. All application queries use bound parameters.
+- The service uses `database/sql` with `go-sql-driver/mysql`. `DATABASE_URL` is now a MySQL
+  DSN, not a PostgreSQL connection URL.
+- Without a DSN the single-replica in-memory mode still works.
+- PostgreSQL's UUID type becomes an ASCII UUID string; existing IDs and Unix timestamps can be
+  preserved by a separately reviewed data transfer.
+- The MySQL table uses InnoDB and `utf8mb4_0900_bin`: product IDs stay case-sensitive and
+  trailing-space-sensitive; comments support Unicode.
+- The return limit is unchanged; MySQL does not delete older rows automatically.
+- The API still validates ratings and field lengths, and the database enforces ratings 1 to 5.
+  All queries use bound parameters.
 
-## Fresh local installation
+## Fresh installation
 
-Use the `reviews-persistence` Kustomize component with a newly built MySQL-capable
-reviewsservice image. It provisions `reviews-mysql` (Deployment, Service, Secret,
-PVC). The PVC is deliberately NOT named `reviews-db`: MySQL must never mount a
-PostgreSQL data directory. The component contains demonstration credentials and
-unencrypted in-cluster SQL. It is not a production-ready HA database.
+Use the `reviews-persistence` Kustomize component with a MySQL-capable reviewsservice image. It
+provisions `reviews-mysql` (Deployment, Service, Secret, PVC). The PVC is deliberately not named
+`reviews-db`: MySQL must never mount a PostgreSQL data directory. The component ships
+demonstration credentials and unencrypted in-cluster SQL; it is not a production database.
 
-Helm only injects a DSN when `reviewsService.database.enabled=true`; it does not
-provision a database. Its default existing Secret is now `reviews-mysql`, key
-`database-url`. Provision a MySQL database and this Secret independently when
-using Helm without the Kustomize component.
+The Helm chart only injects a DSN when `reviewsService.database.enabled=true` and does not
+provision a database. Its default Secret is `reviews-mysql`, key `database-url`. When using Helm
+without the Kustomize component, provision MySQL and that Secret yourself.
 
-IMPORTANT: existing staging/prod image tags still refer to earlier builds until
-CI/CD promotes a new image. Do not sync the changed DSN/manifests with an old
-PostgreSQL-only image. Gate the image and database cutover together.
+Existing staging and prod overlays keep pointing at earlier image tags until CD promotes a new
+build. Do not sync the new DSN and manifests against a PostgreSQL-only image: cut the image and
+the database over together.
 
-## Existing data: controlled cutover required
+## Existing data: controlled cutover
 
-1. Inventory the current context/namespace, deployed image digest, Secret names,
-   PostgreSQL version, row counts, PVC names and reclaim policies. Do not print
-   credentials or commit database exports. This task has not inspected live data.
-2. Pause automatic GitOps sync/pruning for the agreed maintenance window. Protect
-   the OLD `reviews-db` PVC against pruning before removing its manifest from Git.
-   The new PVC's `Prune=false` annotation does not protect the old PVC retroactively.
-3. Back up PostgreSQL and prove restoration into an isolated PostgreSQL instance.
-   Preserve the old image/configuration. A MySQL server cannot restore a `pg_dump`
-   directly, and a filesystem backup alone is not a cross-engine migration.
-4. Provision MySQL on a NEW volume or separate managed instance. Use separately
-   managed credentials, verified TLS, appropriate connection capacity and backups.
-5. Stop reviews writes and drain all existing writers before the final export.
-   Export the six reviews columns with a structured, reviewed ETL process. Preserve
-   review IDs, product IDs, authors, ratings, comments and Unix timestamps. Do not
-   convert SQL dumps with string replacements. There is no automatic ETL in this change.
-6. Import into an empty MySQL target and reject duplicates or invalid rows rather
-   than silently overwriting/truncating them. Compare total/per-product row counts,
-   canonical row checksums, Unicode samples, aggregate ratings and boundary lengths.
-7. Test the new image with MySQL: GetReviews, AddReview, restart persistence,
-   two-replica visibility, readiness on DB failure, and backup/restore. Approve the
-   immutable application image and matching DSN together, then resume traffic.
-8. Watch errors, connection counts and readiness. Retain the old backup/PVC through
-   the agreed rollback window. Resume normal GitOps reconciliation after acceptance.
+1. Inventory the current context and namespace, the deployed image digest, Secret names,
+   PostgreSQL version, row counts, PVC names and reclaim policies. Do not print credentials or
+   commit database exports.
+2. Pause automatic sync and pruning for the maintenance window. Protect the old `reviews-db`
+   PVC before its manifest leaves Git; the new PVC's `Prune=false` annotation does not protect
+   the old one.
+3. Back up PostgreSQL and prove a restore into an isolated instance. Keep the old image and
+   configuration. A MySQL server cannot restore a `pg_dump`, and a filesystem copy is not a
+   cross-engine migration.
+4. Provision MySQL on a new volume or a managed instance, with its own credentials, TLS,
+   connection limits and backups.
+5. Stop reviews writes and drain writers before the final export. Export the six reviews
+   columns with a reviewed ETL step, preserving IDs, product IDs, authors, ratings, comments and
+   timestamps. Do not convert dumps with string replacements.
+6. Import into an empty MySQL target; reject duplicates and invalid rows instead of overwriting
+   them. Compare total and per-product counts, row checksums, Unicode samples, aggregate ratings
+   and boundary lengths.
+7. Test the new image against MySQL: GetReviews, AddReview, persistence across restarts,
+   two-replica visibility, readiness on DB failure, backup and restore. Promote the image and
+   the matching DSN together, then resume traffic.
+8. Watch errors, connection counts and readiness. Keep the old backup and PVC through the
+   rollback window. Resume normal reconciliation after acceptance.
 
 ## Rollback boundary
 
-Before new writes reach MySQL, restore the previous application image AND its
-PostgreSQL Secret/networking and retained database. Reverting only an image is
-insufficient. After MySQL has accepted writes, PostgreSQL is stale: stop writes
-and reconcile the new data before switching back. Do not promise a lossless
-one-command rollback across database engines.
+Before MySQL has accepted writes: restore the previous image and its PostgreSQL Secret,
+networking and retained database. Reverting only the image is not enough. After MySQL has
+accepted writes, PostgreSQL is stale: stop writes and reconcile before switching back. There is
+no lossless one-command rollback across database engines.
 
-## Verification
+## Verification (2026-09-11)
 
-Run the isolated Compose suite documented in `src/reviewsservice/README.md`.
-Render all Kustomize overlays and Helm with database mode both disabled/enabled.
-Run the reviews Docker build. These checks prove the code and configuration
-change; they do not prove a live cloud deployment, existing-data transfer,
-production TLS, offsite backup restoration or public GitHub publication.
+Run on a local working tree at `a8218646` before the change was committed. Two throwaway
+containers (MySQL 8.4.11 and the built service), no host ports, no cluster involved.
+
+| Check | Result |
+| --- | --- |
+| Go 1.26 tidy, gofmt, vet, unit tests | pass |
+| Full reviews test suite against MySQL 8.4.11 with `-race -count=1` | 13 top-level tests pass, integration tests enabled |
+| Unicode and quoted comment round-trip | pass |
+| Case-sensitive and trailing-space-sensitive product lookup | pass |
+| Two DB pools, 20 concurrent writes | pass, all 20 rows returned |
+| Return limit, newest-first ordering, aggregate rating | pass |
+| Rating constraint, cancelled query, invalid DSN | pass |
+| Generated gRPC client and server against real MySQL | pass |
+| Kustomize root, 5 overlays, 2 test overlays | render |
+| Helm lint, default render, two-replica MySQL render; two in-memory replicas rejected | pass |
+| Dockerfile build; official MySQL image as UID/GID 999 with all capabilities dropped | start, authenticated query OK |
+| Distroless service with read-only filesystem and dropped capabilities | start, reflection and review RPCs respond |
+| App restart, then MySQL restart on its volume | the same review ID stays readable |
+| MySQL stopped and recovered | health goes NOT_SERVING then SERVING without an app restart |
+
+Reproduce from the repo root:
+
+```sh
+docker compose -p vanta-reviews-test -f src/reviewsservice/compose.test.yaml up --abort-on-container-exit --exit-code-from tests
+docker compose -p vanta-reviews-test -f src/reviewsservice/compose.test.yaml down -v
+docker build -t vanta-reviews-mysql:local-check src/reviewsservice
+helm lint helm-chart
+helm template vanta helm-chart --set reviewsService.database.enabled=true --set reviewsService.replicas=2
+kubectl kustomize kustomize/overlays/staging
+kubectl kustomize kustomize/overlays/prod
+```
+
+What this run does not prove: a live cluster deployment, transfer of existing data, production
+TLS, off-site backup restoration, or scanning of the other 13 images. Those go through the normal
+CI pipeline and the cutover steps above.
