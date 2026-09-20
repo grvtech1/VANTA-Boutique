@@ -6,9 +6,8 @@
 # Terraform & Kubernetes local configs
 .terraform/
 **/.terraform/
-.terraform.lock.hcl
-**/.terraform.lock.hcl
 *tfplan*
+*.plan
 tf_outputs.json
 *kubeconfig*
 .venv/
