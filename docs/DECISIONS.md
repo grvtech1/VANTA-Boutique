@@ -1,6 +1,6 @@
 # Architecture decisions (ADR-lite)
 
-Short records of the non-obvious choices in this platform and *why* — the part that matters
+Short records of the non-obvious choices in this platform and *why*: the part that matters
 in a review or an interview.
 
 | # | Decision | Why | Trade-off accepted |
@@ -18,6 +18,10 @@ in a review or an interview.
 | 11 | **Secrets never in Git** (Grafana admin, Slack webhook, Velero creds, kubeconfig) | The repo is public | Slightly more setup steps (documented in `monitoring/README.md`) |
 | 12 | **Reviews store: in-memory by default, MySQL opt-in** | Zero-dependency dev experience; durability and multi-replica where it matters | The chart refuses `replicas>1` without the database to prevent split data |
 | 13 | **Self-managed kubeadm on EC2 instead of EKS** | Learning the control plane hands-on (certs, etcd, CNI, StorageClass) and ~$1.5/day vs the EKS control-plane fee | We own upgrades, HA and backups ourselves |
-| 14 | **Keep upstream attribution and license headers** | Apache-2.0 requires it, and honesty about origin is part of the portfolio | — |
+| 14 | **Keep upstream attribution and license headers** | Apache-2.0 requires it, and honesty about origin is part of the portfolio | None |
 | 15 | **Remove cloud-provider SDKs from the services** (Cloud Profiler, GCE metadata detection, AlloyDB/Spanner/Secret Manager stores) instead of leaving them behind flags | Dead code paths still ship in the image: they cost CVE surface, image size and a dependency on one vendor's auth libraries; observability is OpenTelemetry + Prometheus, which run anywhere | Profiling is not wired up; add an OTel-based profiler if it is ever needed |
 | 16 | **Staging and prod pin images by digest as well as tag** (`name:<git-sha>@sha256:...`) | A tag is a mutable pointer in the registry; the digest is the content. Kubernetes resolves the digest, so a re-pushed or retagged image can never change what runs, and prod takes exactly the bytes staging ran (`promote.sh --from-staging` copies both) | Two fields to keep in sync per image; the bump script owns both and fails if a digest cannot be resolved |
+| 17 | **On EKS, a small managed node group as the base and Karpenter for the rest** | Karpenter is a pod; it cannot run on nodes it creates and may remove, so the controller, CoreDNS and the other controllers live on a fixed node group. Karpenter then launches the cheapest instance type that fits the Pending pods and consolidates it away when idle, with no Auto Scaling Group round trip | Two scaling paths to reason about; the node group's size is changed through the AWS API because the EKS module ignores `desired_size` |
+| 18 | **Database credentials from SSM Parameter Store through External Secrets, not Secrets Manager** | Git holds only a pointer; ESO reads with its own read-only IRSA role scoped to `/vanta/*`. The Parameter Store standard tier is free, and Secrets Manager's $0.40 per secret per month buys managed rotation, which the lab does not need | Rotation is manual: change the parameter and ESO syncs within its refresh interval |
+| 19 | **IRSA for the controllers, Pod Identity for Karpenter** | IRSA works everywhere and is needed for add-ons that start before any agent is running; Pod Identity has no per-cluster trust policy and is the Karpenter module's default | Two credential mechanisms in one cluster, each documented where it is used |
+| 20 | **EKS runs on a version inside standard support, enforced by `cluster_upgrade_policy = STANDARD`** | Extended support costs six times as much for the control plane; the policy made AWS refuse a version that had already slipped into extended support | The cluster has to be upgraded roughly every 14 months |

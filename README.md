@@ -29,8 +29,10 @@ demo. The application is theirs; the platform around it is the work in this repo
   states, product reviews with ratings, wishlist, real product photography.
 - **A reproducible platform on AWS**: Terraform provisions the VPC and EC2 nodes, Ansible and
   kubeadm form the cluster, Argo CD delivers by pull-based GitOps, Prometheus/Grafana/Loki
-  observe it, and etcd snapshots plus Velero back it up. An EKS variant of the same platform
-  lives alongside.
+  observe it, and etcd snapshots plus Velero back it up.
+- **The same platform on Amazon EKS**, deployed and tested: Karpenter for node scaling,
+  database credentials from SSM through External Secrets, Pod Security `restricted`, an ALB
+  with readiness gates, and a node drain under live traffic with no failed requests.
 - **A CI/CD pipeline** that tests, builds and scans all 14 images on every push, gates on
   CRITICAL CVEs, produces an SBOM per image, and promotes by committing the git-SHA tag and
   image digest of every image into the staging overlay. CI never holds cluster credentials.
@@ -207,18 +209,43 @@ kubeconfig, tfvars and credentials are git-ignored.
 
 ### Two deployment targets
 
-| | Self-managed (primary) | EKS variant |
+| | Self-managed (primary) | EKS |
 | --- | --- | --- |
-| Terraform | [`/terraform`](/terraform): EC2 + kubeadm | [`/terraform-eks`](/terraform-eks): `terraform-aws-modules` VPC, EKS with access entries, managed node group, CoreDNS/kube-proxy/VPC CNI/EBS CSI add-ons, IRSA for EBS CSI and the Load Balancer Controller |
-| Entry | nginx Ingress on a NodePort/EIP | ALB via the AWS Load Balancer Controller |
+| Terraform | [`/terraform`](/terraform): EC2 + kubeadm | [`/terraform-eks`](/terraform-eks): `terraform-aws-modules` VPC and EKS 1.35, STANDARD support policy, API-only access entries, managed node group (AL2023, IMDSv2), VPC CNI with prefix delegation, IRSA roles, Karpenter submodule |
+| Nodes | fixed EC2 workers | managed node group as the base, Karpenter for the rest ([`/karpenter`](/karpenter)) |
+| Entry | nginx Ingress on a NodePort/EIP | ALB via the AWS Load Balancer Controller, target-type ip, pod readiness gates |
 | Storage | local-path | EBS gp3 |
-| Overlay | `kustomize/overlays/{staging,prod}` | `kustomize/overlays/eks` |
-| Argo CD | `argocd/apps/*` (via the root app) | `argocd/eks/application.yaml`, registered by hand on the EKS cluster |
-| Runbook | [docs/PLATFORM.md](/docs/PLATFORM.md) | [docs/EKS.md](/docs/EKS.md) |
+| Secrets | demo Secret in the component | External Secrets Operator from SSM Parameter Store |
+| Pod security | baseline workloads | namespace enforces `restricted`, RuntimeDefault seccomp |
+| Overlay | `kustomize/overlays/{staging,prod}` | `kustomize/overlays/eks`, pinned to prod's image digests |
+| Argo CD | `argocd/apps/*` (via the root app) | `argocd/eks/application.yaml`, registered by hand, manual sync |
+| Runbook | [docs/PLATFORM.md](/docs/PLATFORM.md) | [docs/EKS.md](/docs/EKS.md): lab steps, results, problems found, teardown order |
+
+```mermaid
+flowchart LR
+    user([Browser]):::ext --> alb["ALB<br/>target-type ip"]:::edge
+    alb --> pods["frontend pods<br/>(VPC IPs)"]
+    subgraph eks["EKS 1.35 · 2 AZs"]
+      pods --> be["13 gRPC services<br/>PSA restricted"]
+      mng["managed node group<br/>Karpenter · LBC · ESO · Argo CD"]:::node
+      kp["Karpenter nodes<br/>on demand"]:::node
+    end
+    mng -->|Pod Identity: launch EC2| kp
+    mng -->|IRSA: read /vanta/*| ssm[("SSM")]:::store
+    mng -->|pull| git[("Git")]:::store
+    be --> ebs[("EBS gp3<br/>MySQL")]:::store
+
+    classDef edge  fill:#7c5cff,stroke:#fff,color:#fff;
+    classDef node  fill:#326ce5,stroke:#fff,color:#fff;
+    classDef store fill:#244c5a,stroke:#fff,color:#fff;
+    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+```
 
 kubeadm was chosen first to work with the control plane directly (certificates, etcd, CNI,
-StorageClass). The EKS variant reuses the same overlays and images with managed control plane
-and IAM-native access. See [docs/DECISIONS.md](/docs/DECISIONS.md) for the trade-offs.
+StorageClass). The EKS build reuses the same base and images with a managed control plane and
+IAM-native access, and was tested with Karpenter scale-out, HPA under load and a node drain
+under live traffic (249/249 requests served). See [docs/EKS.md](/docs/EKS.md) for the numbers
+and [docs/DECISIONS.md](/docs/DECISIONS.md) for the trade-offs.
 
 ## Repository map
 
@@ -229,6 +256,7 @@ argocd/              root.yaml (app-of-apps) · apps/{dev,staging,prod}.yaml · 
 backup/              Velero install and example credentials file
 docs/                PLATFORM (runbook) · RUNBOOKS · DECISIONS · EKS · development guide · migration guides
 helm-chart/          alternative packaging, linted and rendered in CI
+karpenter/           EC2NodeClass + NodePool for the EKS cluster
 kustomize/           base/ (14 services) · components/ · overlays/{dev,staging,prod,eks,local,kind-ingress} · tests/
 monitoring/          kube-prometheus-stack, Loki and ingress-nginx values; Grafana dashboard; alert rules
 protos/              gRPC contracts (demo.proto, health)
