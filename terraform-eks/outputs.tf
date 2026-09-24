@@ -67,3 +67,8 @@ output "destroy_command" {
   description = "COST CONTROL: Run this to destroy all EKS resources and stop billing"
   value       = "cd ~/VANTA-Boutique/terraform-eks && terraform destroy -auto-approve"
 }
+
+output "eso_role_arn" {
+  description = "IRSA role for the External Secrets Operator ServiceAccount (external-secrets/external-secrets)."
+  value       = module.irsa_eso.iam_role_arn
+}

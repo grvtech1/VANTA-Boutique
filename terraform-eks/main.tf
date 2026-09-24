@@ -263,3 +263,48 @@ module "eks" {
     }
   }
 }
+
+# =============================================================================
+# 5. IRSA — External Secrets Operator (SSM Parameter Store → Kubernetes Secret)
+# =============================================================================
+# WHY: app secrets (the reviews MySQL passwords) should live in SSM Parameter
+# Store, not in Git. ESO runs in-cluster, reads the parameters with this role,
+# and writes a normal Kubernetes Secret the pods already consume.
+#
+# WHY Parameter Store and not Secrets Manager: the standard tier is free;
+# Secrets Manager is $0.40 per secret per month and only earns that when you
+# need managed rotation.
+#
+# Least privilege: read-only, and only under the /vanta/ prefix. SecureString
+# values use the AWS managed aws/ssm key, whose key policy already allows
+# decryption through SSM for principals in this account.
+# =============================================================================
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_policy" "eso_ssm_read" {
+  name        = "${var.cluster_name}-eso-ssm-read"
+  description = "External Secrets Operator: read SSM parameters under /vanta/"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/vanta/*"
+    }]
+  })
+}
+
+module "irsa_eso" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name        = "${var.cluster_name}-eso"
+  role_policy_arns = { ssm_read = aws_iam_policy.eso_ssm_read.arn }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["external-secrets:external-secrets"]
+    }
+  }
+}

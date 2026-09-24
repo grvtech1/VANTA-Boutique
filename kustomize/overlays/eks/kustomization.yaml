@@ -27,7 +27,19 @@ resources:
   - namespace.yaml
   - gp3-storageclass.yaml    # EKS needs EBS CSI StorageClass as default (see file for WHY)
   - ingress.yaml              # ALB Ingress (replaces nginx NodePort from kubeadm setup)
+  - external-secrets.yaml     # reviews MySQL creds from SSM via External Secrets Operator
   - ../../base
+
+# The reviews-persistence component ships a demo Secret with plain-text
+# passwords. On EKS it is removed here and rebuilt by ESO from SSM
+# (external-secrets.yaml), so no credential lives in Git for this cluster.
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: reviews-mysql
 
 components:
   - ../../components/reviews-persistence      # MySQL-backed reviews; PVC binds to gp3 on EKS
