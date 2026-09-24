@@ -72,3 +72,13 @@ output "eso_role_arn" {
   description = "IRSA role for the External Secrets Operator ServiceAccount (external-secrets/external-secrets)."
   value       = module.irsa_eso.iam_role_arn
 }
+
+output "karpenter_queue_name" {
+  description = "SQS interruption queue; pass to the Karpenter Helm chart as settings.interruptionQueue."
+  value       = module.karpenter.queue_name
+}
+
+output "karpenter_node_role_name" {
+  description = "IAM role for Karpenter-launched nodes; referenced by the EC2NodeClass spec.role."
+  value       = module.karpenter.node_iam_role_name
+}

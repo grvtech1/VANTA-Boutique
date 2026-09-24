@@ -1,0 +1,59 @@
+# =============================================================================
+# Karpenter NodePool + EC2NodeClass for the EKS cluster (terraform-eks/)
+# =============================================================================
+# Apply after the Karpenter Helm chart (it installs the CRDs):
+#   kubectl apply -f karpenter/nodepool.yaml
+#
+# EC2NodeClass = HOW to build a node (AMI, subnets, security groups, IAM role).
+# NodePool     = WHICH nodes are allowed and WHEN to remove them.
+#
+# Instance types are pinned to two that the AWS Free Plan account can launch
+# (the account rejects anything else). On a paid account widen this to
+# instance categories (c, m, r) and add "spot" to capacity-type.
+# =============================================================================
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  role: online-boutique-eks-karpenter-node   # terraform-eks output karpenter_node_role_name
+  amiSelectorTerms:
+    - alias: al2023@latest                     # lab; pin a version (al2023@v2026...) in prod
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: online-boutique-eks
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: online-boutique-eks
+  metadataOptions:                             # same IMDSv2 hardening as the managed node group
+    httpEndpoint: enabled
+    httpTokens: required
+    httpPutResponseHopLimit: 1
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["m7i-flex.large", "c7i-flex.large"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+      expireAfter: 720h        # replace nodes monthly so they pick up new AMIs
+  limits:
+    cpu: "4"                   # hard cap: at most 2 extra 2-vCPU nodes (cost guard)
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m       # lab: react fast; prod: minutes to avoid churn

@@ -70,6 +70,8 @@ module "vpc" {
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb"           = 1
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    # Karpenter's EC2NodeClass finds the subnets for new nodes by this tag.
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
@@ -177,6 +179,12 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets # control-plane ENIs land in private subnets
 
+  # Karpenter nodes join with the same node security group as the managed
+  # node group (so pods on either can talk); the EC2NodeClass selects it by tag.
+  node_security_group_tags = {
+    "karpenter.sh/discovery" = var.cluster_name
+  }
+
   # ------------------------------------------------------------------
   # Managed EKS add-ons
   # ------------------------------------------------------------------
@@ -184,6 +192,12 @@ module "eks" {
     coredns = {
       most_recent = true
       # coredns can be installed after nodes are ready (it needs compute to schedule)
+    }
+    # Pod Identity agent (DaemonSet): hands AWS credentials to pods that have a
+    # pod identity association. The Karpenter controller uses it (see module
+    # "karpenter" below); everything else here still uses IRSA.
+    eks-pod-identity-agent = {
+      most_recent = true
     }
     # before_compute=true: install kube-proxy BEFORE the managed node group comes up.
     # WHY: nodes need kube-proxy's iptables rules to route Service ClusterIP traffic
@@ -306,5 +320,46 @@ module "irsa_eso" {
       provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["external-secrets:external-secrets"]
     }
+  }
+}
+
+# =============================================================================
+# 6. Karpenter — node autoscaling for workload pods
+# =============================================================================
+# The managed node group stays as the fixed base (and runs the Karpenter
+# controller itself: it cannot live on nodes it provisions). When pods go
+# Pending for lack of capacity, Karpenter launches a right-sized EC2 instance
+# directly (no Auto Scaling Group round trip) and removes it again when it is
+# empty or underused (consolidation).
+#
+# The submodule creates: the controller IAM role, the node IAM role + instance
+# profile, the EKS access entry that lets those nodes join, and the SQS queue +
+# EventBridge rules for interruption/rebalance notices.
+#
+# enable_v1_permissions: required for Karpenter v1.x; the module default is
+#   still the v0.x policy, which fails with AccessDenied on v1.
+# Pod Identity (the module default): the controller gets AWS credentials
+#   through the eks-pod-identity-agent add-on instead of IRSA.
+# =============================================================================
+module "karpenter" {
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "~> 20.0"
+
+  cluster_name = module.eks.cluster_name
+
+  enable_v1_permissions           = true
+  enable_pod_identity             = true
+  create_pod_identity_association = true
+  namespace                       = "kube-system"
+  service_account                 = "karpenter"
+
+  # Fixed role name (the default adds a random suffix) so the EC2NodeClass
+  # in Git can reference it directly.
+  node_iam_role_use_name_prefix = false
+  node_iam_role_name            = "${var.cluster_name}-karpenter-node"
+
+  # SSM access on Karpenter nodes, same as the managed node group has.
+  node_iam_role_additional_policies = {
+    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
 }
