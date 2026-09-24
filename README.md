@@ -2,14 +2,14 @@
 
 <p align="center">
   <strong>Curated for the Bold.</strong> A dark-themed e-commerce storefront on a polyglot gRPC
-  microservices app, with the complete delivery platform around it: Terraform, kubeadm, Argo CD,
-  GitHub Actions, Prometheus. Everything is code.
+  microservices app, with the complete delivery platform around it: Terraform, kubeadm and EKS,
+  Argo CD, GitHub Actions, Prometheus. Everything is code.
 </p>
 
 <p align="center">
   <a href="#architecture"><img alt="Microservices" src="https://img.shields.io/badge/architecture-microservices-7c5cff"></a>
   <a href="#architecture"><img alt="gRPC" src="https://img.shields.io/badge/RPC-gRPC-244c5a"></a>
-  <a href="/kustomize"><img alt="Kubernetes" src="https://img.shields.io/badge/orchestration-Kubernetes%20(kubeadm%20%7C%20EKS)-326ce5"></a>
+  <a href="#deployment-targets"><img alt="Kubernetes" src="https://img.shields.io/badge/orchestration-Kubernetes%20(kubeadm%20%7C%20EKS)-326ce5"></a>
   <a href="/terraform"><img alt="Terraform" src="https://img.shields.io/badge/IaC-Terraform-7b42bc"></a>
   <a href="/argocd"><img alt="Argo CD" src="https://img.shields.io/badge/GitOps-Argo%20CD-ef7b4d"></a>
   <a href="/monitoring"><img alt="Observability" src="https://img.shields.io/badge/observability-Prometheus%20%2B%20Grafana-e6522c"></a>
@@ -27,15 +27,12 @@ demo. The application is theirs; the platform around it is the work in this repo
 - **Three new services** written from scratch in Go: reviews (MySQL-backed), wishlist, inventory.
 - **A rebuilt storefront**: rupee-first pricing, 25-product catalog with search/filter/sort, stock
   states, product reviews with ratings, wishlist, real product photography.
-- **A reproducible platform on AWS**: Terraform provisions the VPC and EC2 nodes, Ansible and
-  kubeadm form the cluster, Argo CD delivers by pull-based GitOps, Prometheus/Grafana/Loki
-  observe it, and etcd snapshots plus Velero back it up.
-- **The same platform on Amazon EKS**, deployed and tested: Karpenter for node scaling,
-  database credentials from SSM through External Secrets, Pod Security `restricted`, an ALB
-  with readiness gates, and a node drain under live traffic with no failed requests.
-- **A CI/CD pipeline** that tests, builds and scans all 14 images on every push, gates on
-  CRITICAL CVEs, produces an SBOM per image, and promotes by committing the git-SHA tag and
-  image digest of every image into the staging overlay. CI never holds cluster credentials.
+- **A delivery platform defined in code**: every push is tested, built, scanned and given an SBOM;
+  images are promoted by digest through Git; Argo CD deploys; Prometheus alerts on an SLO.
+  See [Platform](#platform).
+- **Two deployment targets from the same base**: a self-managed kubeadm cluster on EC2 and Amazon
+  EKS, both provisioned with Terraform and both run and tested. See
+  [Deployment targets](#deployment-targets).
 
 The storefront is 14 services in five languages (Go, C#, Node.js, Python, Java) talking gRPC.
 
@@ -125,23 +122,72 @@ registry namespace (`docker.io/grvp1`).
 
 ## Platform
 
-Nothing is clicked in a console. The platform is provisioned once from code, then the
-day-to-day loop is a Git commit.
+Nothing is clicked in a console. The pieces in this section are defined once and are the same
+whichever cluster runs the store; what differs per cluster is under
+[Deployment targets](#deployment-targets).
+
+**Release path.** Staging is automatic; prod needs a human. Rollback in either is `git revert`.
 
 ```mermaid
 flowchart LR
-    dev([git push]):::ext
+    c([commit on main]):::ext --> ci["CI: vet, tests, build 14 images,<br/>Trivy CRITICAL gate, SBOM"]
+    ci -->|green| reg[("docker.io/grvp1<br/>image:git-sha")]:::store
+    ci -->|green| cd["CD: pin tag + digest<br/>in overlays/staging [skip ci]"]
+    cd --> st["Argo CD staging<br/>auto-sync + self-heal"]:::argo
+    st --> pr["scripts/promote.sh --from-staging<br/>copies tag + digest to overlays/prod"]
+    pr --> ps["Argo CD prod<br/>OutOfSync, manual sync"]:::argo
+    ps -->|human approves| prod[("prod")]:::store
 
-    subgraph ci["GitHub Actions"]
-      direction LR
-      test["vet + unit tests<br/>reviews -race with MySQL"] --> build["build 14 images"] --> scan["Trivy CRITICAL gate<br/>CycloneDX SBOM"] --> ship["push image:git-sha<br/>pin tag + digest in staging overlay"]
-    end
+    classDef argo  fill:#ef7b4d,stroke:#fff,color:#fff;
+    classDef store fill:#244c5a,stroke:#fff,color:#fff;
+    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
+```
 
+| Layer | What is here | Where |
+| --- | --- | --- |
+| CI/CD | GitHub Actions: vet and unit tests (reviews with `-race` against a MySQL service container), all 14 images, Trivy CRITICAL gate, a CycloneDX SBOM per image, Kustomize and Helm render checks, `terraform validate` | [`/.github/workflows`](/.github/workflows) |
+| Images | Built here, tagged with the git SHA and pinned by digest in staging and prod, so prod runs the exact bytes staging ran | [`scripts/bump-image-tags.sh`](/scripts/bump-image-tags.sh) |
+| GitOps | Argo CD pulls from Git; CI never holds cluster credentials | [`/argocd`](/argocd), [`scripts/promote.sh`](/scripts/promote.sh) |
+| Manifests | Kustomize base, overlays per environment and cluster (`dev`, `staging`, `prod`, `eks`), components (ingress, TLS, network policies, PDBs, persistence, tracing) | [`/kustomize`](/kustomize) |
+| Observability | kube-prometheus-stack, 11 alert rules including a 99.5% availability SLO with multi-window burn-rate alerts, Alertmanager to Slack by severity, a Grafana dashboard, Loki | [`/monitoring`](/monitoring) |
+| Security | RBAC, default-deny NetworkPolicies with per-service allow lists, non-root distroless images, the image scan gate, no secrets in Git | [`components/network-policies`](/kustomize/components/network-policies) |
+| Resilience | HPA, PodDisruptionBudgets, chaos and node-failover drills with runbooks | [`/scripts`](/scripts), [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md) |
+| Packaging | A Helm chart as an alternative to the overlays, validated in CI | [`/helm-chart`](/helm-chart) |
+
+## Deployment targets
+
+The same Kustomize base and images run on two clusters. kubeadm came first, to work with the
+control plane directly (certificates, etcd, CNI, StorageClass); EKS reuses everything above with
+a managed control plane and IAM-native access. The trade-offs are in
+[docs/DECISIONS.md](/docs/DECISIONS.md).
+
+| | Self-managed kubeadm on EC2 | Amazon EKS |
+| --- | --- | --- |
+| Terraform | [`/terraform`](/terraform): VPC, 1 master + 2 workers, EIP, security groups, an IAM role for etcd backups | [`/terraform-eks`](/terraform-eks): community VPC and EKS modules, EKS 1.35 held in standard support, API-only access entries |
+| Control plane | kubeadm via [Ansible](/ansible); certificates, etcd and upgrades are ours | AWS-managed across three AZs |
+| Nodes | fixed workers | a managed node group (AL2023, IMDSv2) as the base, [Karpenter](/karpenter) for the rest |
+| Networking | Calico overlay | VPC CNI with prefix delegation (110 pods per node) |
+| Entry | nginx Ingress with rate limits and timeouts, cert-manager TLS | ALB through the AWS Load Balancer Controller, target-type ip, pod readiness gates |
+| Storage | local-path | EBS gp3 through the CSI driver |
+| Secrets | the demo Secret in the persistence component | External Secrets Operator from SSM Parameter Store |
+| Pod security | Pod Security admission | the namespace enforces `restricted`, RuntimeDefault seccomp |
+| Pod to AWS | etcd backup uses a write-only node instance role | IRSA per controller, Pod Identity for Karpenter, instance metadata blocked for pods |
+| Observability | kube-prometheus-stack, Loki, the SLO alerts | not deployed yet |
+| Backup and DR | etcd snapshots to S3 every 6 hours, Velero file-system backups, restore drill | etcd is AWS-managed; Git is the source of truth |
+| Argo CD | root app-of-apps (`argocd/apps/*`) | `argocd/eks/application.yaml`, manual sync |
+| Tested | self-heal of a manual change, `git revert` rollback, etcd snapshot restore | Karpenter scale-out, HPA under load, node drain under live traffic with 249/249 requests served |
+| Cost | about $1.5/day | about $0.35-0.40/hr while running, destroyed after each session |
+| Runbook | [docs/PLATFORM.md](/docs/PLATFORM.md) | [docs/EKS.md](/docs/EKS.md) |
+
+### Self-managed on EC2
+
+```mermaid
+flowchart LR
+    git[("Git<br/>overlays")]:::store
     reg[("docker.io/grvp1")]:::store
-    git[("Git<br/>kustomize/overlays")]:::store
     s3[("S3<br/>etcd snapshots, Velero")]:::store
 
-    subgraph aws["AWS ap-south-1 · VPC 10.0.0.0/16 · Terraform"]
+    subgraph aws["AWS ap-south-1 · VPC 10.0.0.0/16"]
       direction TB
       subgraph master["master · t3.small · EIP"]
         api["kube-apiserver · etcd<br/>kubeadm + Calico"]:::edge
@@ -153,9 +199,6 @@ flowchart LR
       w2["worker-2 · t3.micro<br/>app pods"]:::node
     end
 
-    dev --> test
-    ship --> reg
-    ship --> git
     argo -->|watches| git
     argo -->|syncs| w1
     argo -->|syncs| w2
@@ -169,57 +212,9 @@ flowchart LR
     classDef argo  fill:#ef7b4d,stroke:#fff,color:#fff,stroke-width:2px;
     classDef node  fill:#326ce5,stroke:#fff,color:#fff;
     classDef store fill:#244c5a,stroke:#fff,color:#fff;
-    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
 ```
 
-### Release path
-
-Staging is automatic; prod needs a human. Rollback in either is `git revert`.
-
-```mermaid
-flowchart LR
-    c([commit on main]):::ext --> ci["CI: test, build, scan, SBOM"]
-    ci -->|green| cd["CD: push image:sha<br/>commit tag to overlays/staging [skip ci]"]
-    cd --> st["Argo CD staging<br/>auto-sync + self-heal"]:::argo
-    st --> pr["scripts/promote.sh --from-staging<br/>copies tag + digest to overlays/prod"]
-    pr --> ps["Argo CD prod<br/>OutOfSync, manual sync"]:::argo
-    ps -->|human approves| prod[("prod")]:::store
-
-    classDef argo  fill:#ef7b4d,stroke:#fff,color:#fff;
-    classDef store fill:#244c5a,stroke:#fff,color:#fff;
-    classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
-```
-
-| Layer | What is here | Where |
-| --- | --- | --- |
-| Infrastructure | Terraform: VPC, public subnet, IGW, security groups, EIP, key pair, 1 master + 2 workers, an IAM role for etcd backups | [`/terraform`](/terraform) |
-| Cluster | Ansible + kubeadm bootstrap, Calico CNI, an audit playbook | [`/ansible`](/ansible), [`scripts/bootstrap-k8s.sh`](/scripts/bootstrap-k8s.sh) |
-| Manifests | Kustomize base, `dev`/`staging`/`prod`/`eks` overlays, composable components (ingress, TLS, network policies, PDBs, persistence, tracing) | [`/kustomize`](/kustomize) |
-| GitOps | Argo CD app-of-apps: staging auto-syncs from CI-committed git-SHA tags; prod is manual sync | [`/argocd`](/argocd), [`scripts/promote.sh`](/scripts/promote.sh) |
-| CI/CD | GitHub Actions: vet and tests, all 14 images, Trivy CRITICAL gate, SBOM, Kustomize and Helm render checks, `terraform validate` | [`/.github/workflows`](/.github/workflows) |
-| Ingress and TLS | nginx Ingress with rate limits and timeouts; cert-manager with Let's Encrypt | [`components/ingress`](/kustomize/components/ingress), [`components/tls`](/kustomize/components/tls) |
-| Observability | kube-prometheus-stack, 11 alert rules including a 99.5% availability SLO with multi-window burn-rate alerts, Alertmanager to Slack by severity, a Grafana dashboard, Loki | [`/monitoring`](/monitoring) |
-| Security | RBAC, Pod Security admission, default-deny NetworkPolicies with per-service allow lists, least-privilege security groups, non-root distroless images, image scan gate, no secrets in Git | [`/scripts`](/scripts), [`components/network-policies`](/kustomize/components/network-policies) |
-| Backup and DR | Git as source of truth; etcd snapshots to S3 every 6 hours from a systemd timer using a write-only IAM instance role; Velero file-system backups every 6 hours (48h retention); restore drill in the runbooks | [`scripts/etcd-backup-setup.sh`](/scripts/etcd-backup-setup.sh), [`terraform/iam-etcd-backup.tf`](/terraform/iam-etcd-backup.tf), [`/backup`](/backup) |
-| Resilience | HPA (frontend, reviews), PodDisruptionBudgets, chaos and node-failover drills with runbooks | [`/scripts`](/scripts), [`docs/RUNBOOKS.md`](/docs/RUNBOOKS.md) |
-| Packaging | A Helm chart as an alternative to the overlays, validated in CI | [`/helm-chart`](/helm-chart) |
-
-The AWS footprint is about **$1.5/day** and tears down with `terraform destroy`. State,
-kubeconfig, tfvars and credentials are git-ignored.
-
-### Two deployment targets
-
-| | Self-managed (primary) | EKS |
-| --- | --- | --- |
-| Terraform | [`/terraform`](/terraform): EC2 + kubeadm | [`/terraform-eks`](/terraform-eks): `terraform-aws-modules` VPC and EKS 1.35, STANDARD support policy, API-only access entries, managed node group (AL2023, IMDSv2), VPC CNI with prefix delegation, IRSA roles, Karpenter submodule |
-| Nodes | fixed EC2 workers | managed node group as the base, Karpenter for the rest ([`/karpenter`](/karpenter)) |
-| Entry | nginx Ingress on a NodePort/EIP | ALB via the AWS Load Balancer Controller, target-type ip, pod readiness gates |
-| Storage | local-path | EBS gp3 |
-| Secrets | demo Secret in the component | External Secrets Operator from SSM Parameter Store |
-| Pod security | baseline workloads | namespace enforces `restricted`, RuntimeDefault seccomp |
-| Overlay | `kustomize/overlays/{staging,prod}` | `kustomize/overlays/eks`, pinned to prod's image digests |
-| Argo CD | `argocd/apps/*` (via the root app) | `argocd/eks/application.yaml`, registered by hand, manual sync |
-| Runbook | [docs/PLATFORM.md](/docs/PLATFORM.md) | [docs/EKS.md](/docs/EKS.md): lab steps, results, problems found, teardown order |
+### Amazon EKS
 
 ```mermaid
 flowchart LR
@@ -241,30 +236,9 @@ flowchart LR
     classDef ext   fill:#1b1b1f,stroke:#7c5cff,color:#cfc6ff;
 ```
 
-kubeadm was chosen first to work with the control plane directly (certificates, etcd, CNI,
-StorageClass). The EKS build reuses the same base and images with a managed control plane and
-IAM-native access, and was tested with Karpenter scale-out, HPA under load and a node drain
-under live traffic (249/249 requests served). See [docs/EKS.md](/docs/EKS.md) for the numbers
-and [docs/DECISIONS.md](/docs/DECISIONS.md) for the trade-offs.
-
-## Repository map
-
-```
-.github/workflows/   ci-pipeline, cd-pipeline, kustomize/helm/terraform validation, deps-bump
-ansible/             playbook.yml (kubeadm init/join + Calico), audit-playbook.yml
-argocd/              root.yaml (app-of-apps) · apps/{dev,staging,prod}.yaml · eks/application.yaml
-backup/              Velero install and example credentials file
-docs/                PLATFORM (runbook) · RUNBOOKS · DECISIONS · EKS · development guide · migration guides
-helm-chart/          alternative packaging, linted and rendered in CI
-karpenter/           EC2NodeClass + NodePool for the EKS cluster
-kustomize/           base/ (14 services) · components/ · overlays/{dev,staging,prod,eks,local,kind-ingress} · tests/
-monitoring/          kube-prometheus-stack, Loki and ingress-nginx values; Grafana dashboard; alert rules
-protos/              gRPC contracts (demo.proto, health)
-scripts/             setup-argocd, install-ingress-nginx, promote, bump-image-tags, etcd-backup-setup,
-                     failover-lab, chaos-engineering, health-check, eks-addons
-src/                 14 services, one directory each, with Dockerfile and README
-terraform/           kubeadm cluster on EC2        terraform-eks/   EKS variant
-```
+Both tear down with `terraform destroy`; on EKS delete the Karpenter NodePool and the Argo CD
+Application first (the order is in [docs/EKS.md](/docs/EKS.md#teardown)). State, kubeconfig,
+tfvars and credentials are git-ignored.
 
 ## Run it locally (kind)
 
@@ -311,34 +285,44 @@ If you are upgrading a deployment that used the earlier PostgreSQL store, read
 [the MySQL migration guide](docs/REVIEWS_MYSQL_MIGRATION.md) first; the image and the database
 configuration have to be cut over together.
 
-Other paths: the [platform runbook](/docs/PLATFORM.md) for AWS, [docs/EKS.md](/docs/EKS.md)
-for EKS, [`/helm-chart`](/helm-chart) for Helm, and the
-[development guide](/docs/development-guide.md) for the inner loop.
+## Repository map
 
-## Tech stack
-
-- **Languages:** Go, C#, Node.js, Python, Java
-- **Comms:** gRPC and Protocol Buffers, gRPC health protocol
-- **Data:** Redis (cart), MySQL via go-sql-driver (reviews)
-- **Packaging:** multi-stage Docker, `distroless:nonroot`
-- **Infrastructure:** Terraform (AWS VPC, EC2; EKS variant with terraform-aws-modules), Ansible
-- **Orchestration:** Kubernetes (kubeadm + Calico; EKS), Kustomize base/overlays/components, Helm
-- **Ingress and TLS:** nginx Ingress, cert-manager
-- **CI/CD and GitOps:** GitHub Actions (vet, `-race` tests with a MySQL service container, Trivy gate, CycloneDX SBOM), Argo CD app-of-apps, images pinned by git-SHA tag and digest
-- **Observability:** Prometheus, Alertmanager (Slack), Grafana, Loki, SLO burn-rate alerts
-- **Backup and resilience:** etcd snapshots to S3, Velero, HPA, PDB, NetworkPolicies, chaos and failover drills
+```
+.github/workflows/   ci-pipeline, cd-pipeline, kustomize/helm/terraform validation, deps-bump
+ansible/             playbook.yml (kubeadm init/join + Calico), audit-playbook.yml
+argocd/              root.yaml (app-of-apps) · apps/{dev,staging,prod}.yaml · eks/application.yaml
+backup/              Velero install and example credentials file
+docs/                PLATFORM · EKS · RUNBOOKS · DECISIONS · development guide · migration guides
+helm-chart/          alternative packaging, linted and rendered in CI
+karpenter/           EC2NodeClass + NodePool for the EKS cluster
+kustomize/           base/ (14 services) · components/ · overlays/{dev,staging,prod,eks,local,kind-ingress} · tests/
+monitoring/          kube-prometheus-stack, Loki and ingress-nginx values; Grafana dashboard; alert rules
+protos/              gRPC contracts (demo.proto, health)
+scripts/             setup-argocd, install-ingress-nginx, promote, bump-image-tags, etcd-backup-setup,
+                     failover-lab, chaos-engineering, health-check, eks-addons
+src/                 14 services, one directory each, with Dockerfile and README
+terraform/           kubeadm cluster on EC2        terraform-eks/   EKS cluster
+```
 
 ## Documentation
 
-- [Platform runbook](/docs/PLATFORM.md): provision AWS, form the cluster, GitOps, observability, day-2.
-- [EKS runbook](/docs/EKS.md): the managed-cluster variant.
+**Run a cluster**
+
+- [Platform runbook](/docs/PLATFORM.md): the kubeadm cluster on AWS, from Terraform to GitOps, observability and day-2.
+- [EKS runbook](/docs/EKS.md): the tested EKS build step by step, results, problems found, teardown order.
 - [Runbooks](/docs/RUNBOOKS.md): crash loops, rollback, node failover, DB down, SLO burn, TLS, restore drill.
-- [Decisions](/docs/DECISIONS.md): why GitOps, SHA tags, scan gates, network policies, SLOs, kubeadm.
+
+**Understand the choices**
+
+- [Decisions](/docs/DECISIONS.md): GitOps, SHA tags and digests, scan gates, network policies, SLOs, kubeadm, and the EKS choices (Karpenter, External Secrets, IRSA vs Pod Identity).
+- [How this was built](/docs/learning-journey.md): minikube to a 3-node cluster on AWS.
+
+**Work on the code**
+
 - [Development guide](/docs/development-guide.md), [CI/CD workflows](/.github/workflows/README.md), [Kustomize layout](/kustomize/README.md), [Helm chart](/helm-chart/README.md), [Monitoring](/monitoring/README.md)
 - [Reviews](/src/reviewsservice/README.md), [Wishlist](/src/wishlistservice/README.md), [Inventory](/src/inventoryservice/README.md) service READMEs
 - [Adding a new microservice](/docs/adding-new-microservice.md), with reviewsservice as the worked example
 - [Reviews: PostgreSQL to MySQL](/docs/REVIEWS_MYSQL_MIGRATION.md), including the verification run
-- [How this was built](/docs/learning-journey.md): minikube to a 3-node cluster on AWS
 
 ## Credits and license
 

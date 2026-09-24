@@ -1,7 +1,8 @@
 # EKS runbook
 
 VANTA Boutique on Amazon EKS: the second deployment target next to the self-managed kubeadm
-cluster. Same images, same Kustomize base, managed control plane.
+cluster. Same images, same Kustomize base, managed control plane. How it differs from the kubeadm cluster
+is in the [README comparison](../README.md#deployment-targets); this page is how to build it.
 
 Deployed and tested end to end on 2026-09-24 on EKS 1.35: 28/28 pods running, the store served
 through an ALB, Karpenter scaling a node in, HPA scaling the frontend, and a node drain under
@@ -99,19 +100,6 @@ The `boutique` namespace enforces Pod Security **restricted**; every Deployment 
 RuntimeDefault seccomp profile, a preStop hook and an ALB readiness gate (see
 `kustomize/overlays/eks/`).
 
-## kubeadm vs EKS
-
-| Concern | kubeadm (`terraform/`) | EKS (`terraform-eks/`) |
-| --- | --- | --- |
-| Control plane | self-managed: etcd, certificates, upgrades | AWS-managed across 3 AZs |
-| Access | client certificate in admin.conf | IAM identity mapped by an EKS access entry |
-| CNI | Calico overlay | VPC CNI, pods get VPC IPs, prefix delegation |
-| Entry | nginx Ingress on a NodePort | ALB, target-type ip |
-| Storage | local-path (node-bound) | EBS gp3 via the CSI driver |
-| Node scaling | fixed nodes | managed node group base + Karpenter |
-| Secrets | plain Secret in the component (demo) | ESO from SSM Parameter Store |
-| Pod to AWS | node instance role | IRSA / Pod Identity, IMDS blocked for pods |
-
 ---
 
 ## Prerequisites
@@ -138,7 +126,18 @@ aws eks describe-cluster-versions --region ap-south-1 \
 
 ## Lab steps
 
+The order matters: infrastructure, then every platform controller, then the store. The EKS
+overlay contains ExternalSecret resources, so External Secrets must be installed (and the SSM
+parameters written) before Argo CD syncs it; and Karpenter must be running before the store
+fills the two base nodes, otherwise its own pod can end up Pending with nothing to add capacity.
+
 Each step ends with a check. Do not move on until it passes.
+
+```
+1 cluster  →  2 platform controllers  →  3 Argo CD + store  →  4 security checks  →  5 load + HPA  →  6 HA drill
+  Terraform     LBC · metrics-server        GitOps sync           PSA · IMDS · API       autoscaling      node drain
+                ESO + SSM · Karpenter
+```
 
 ### 1. Cluster
 
@@ -147,14 +146,19 @@ cd terraform-eks
 terraform init
 terraform plan -out=eks.plan      # read it: no "forces replacement", no destroy
 terraform apply eks.plan          # ~15 min
+cd ..
 aws eks update-kubeconfig --name online-boutique-eks --region ap-south-1
 ```
 
-Check: `kubectl get nodes` shows 2 nodes `Ready` on 1.35, one per AZ.
+Check: `kubectl get nodes` shows 2 nodes `Ready` on 1.35, one per AZ, and
 `kubectl get nodes -o jsonpath='{.items[*].status.allocatable.pods}'` shows 110 per node
 (prefix delegation; without it an m7i-flex.large takes about 29).
 
-### 2. Load Balancer Controller and metrics-server
+### 2. Platform controllers
+
+All four go onto the managed node group before any application pod exists.
+
+**Load Balancer Controller and metrics-server**
 
 ```sh
 export LB_ROLE_ARN=$(terraform -chdir=terraform-eks output -raw lb_controller_role_arn)
@@ -165,8 +169,47 @@ helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 helm upgrade --install metrics-server metrics-server/metrics-server -n kube-system
 ```
 
-Check: `kubectl -n kube-system get deploy aws-load-balancer-controller metrics-server` both
-ready, and `kubectl top nodes` returns numbers (give metrics-server a minute).
+**External Secrets Operator and the SSM parameters**
+
+Use new random values; the demo passwords are in Git history and count as leaked.
+
+```sh
+helm repo add external-secrets https://charts.external-secrets.io
+helm upgrade --install external-secrets external-secrets/external-secrets \
+  -n external-secrets --create-namespace \
+  --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$(terraform -chdir=terraform-eks output -raw eso_role_arn)"
+
+MSYS_NO_PATHCONV=1 aws ssm put-parameter --region ap-south-1 --type SecureString \
+  --name /vanta/reviews/mysql-password --value "$(openssl rand -hex 16)"
+MSYS_NO_PATHCONV=1 aws ssm put-parameter --region ap-south-1 --type SecureString \
+  --name /vanta/reviews/mysql-root-password --value "$(openssl rand -hex 16)"
+```
+
+The parameters survive a teardown, so on a rebuild skip the two `put-parameter` lines (they
+would fail with `ParameterAlreadyExists`).
+
+**Karpenter**
+
+```sh
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version 1.14.1 \
+  -n kube-system \
+  --set settings.clusterName=online-boutique-eks \
+  --set settings.interruptionQueue=$(terraform -chdir=terraform-eks output -raw karpenter_queue_name) \
+  --set replicas=1 \
+  --set controller.resources.requests.cpu=200m \
+  --set controller.resources.requests.memory=256Mi \
+  --set controller.resources.limits.memory=512Mi --wait
+kubectl apply -f karpenter/nodepool.yaml
+```
+
+Check:
+
+```sh
+kubectl -n kube-system get deploy aws-load-balancer-controller metrics-server karpenter
+kubectl -n external-secrets get pods
+kubectl get nodepool,ec2nodeclass          # both READY True
+kubectl top nodes                          # numbers after a minute
+```
 
 ### 3. Argo CD and the store
 
@@ -186,65 +229,25 @@ kubectl -n argocd patch application vanta-boutique-eks --type merge \
   -p '{"operation":{"initiatedBy":{"username":"gaurav"},"sync":{"revision":"main","prune":true}}}'
 ```
 
-Check: `kubectl -n boutique get pods` all Running, `kubectl -n boutique get ingress` shows the
-ALB hostname, and `http://<alb-hostname>/` returns the store.
+The two base nodes cannot hold all 28 pods, so a few go Pending and Karpenter adds a node for
+them: `kubectl get nodeclaims -w` shows it launch within seconds. That is the scale-out test.
 
-### 4. Secrets from SSM (External Secrets Operator)
+Check:
 
-The ESO role comes from step 1. Install ESO and write the two passwords (new random values; the
-demo ones are in Git history and count as leaked):
+- `kubectl -n boutique get pods`: all Running
+- `kubectl -n boutique get externalsecret reviews-mysql`: `SecretSynced`
+- `kubectl -n boutique get ingress`: the ALB hostname; `http://<hostname>/` serves the store and
+  posting a review returns 302
 
-```sh
-helm repo add external-secrets https://charts.external-secrets.io
-helm upgrade --install external-secrets external-secrets/external-secrets \
-  -n external-secrets --create-namespace \
-  --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$(terraform -chdir=terraform-eks output -raw eso_role_arn)"
+If the MySQL volume was created before the passwords moved to SSM, MySQL still holds the old
+password (it only reads it on first start). Reset it once: scale `reviews-mysql` to 0, delete the
+`reviews-mysql` PVC, sync again, then `kubectl -n boutique rollout restart deploy/reviewsservice`.
+A fresh build does not need this.
 
-MSYS_NO_PATHCONV=1 aws ssm put-parameter --region ap-south-1 --type SecureString \
-  --name /vanta/reviews/mysql-password --value "$(openssl rand -hex 16)"
-MSYS_NO_PATHCONV=1 aws ssm put-parameter --region ap-south-1 --type SecureString \
-  --name /vanta/reviews/mysql-root-password --value "$(openssl rand -hex 16)"
-```
-
-The overlay deletes the component's plain-text Secret and `external-secrets.yaml` rebuilds it with
-the same name and keys, so MySQL and reviewsservice need no change. Sync the Application again.
-
-Check: `kubectl -n boutique get externalsecret reviews-mysql` shows `SecretSynced`, and the
-Secret's owner is the ExternalSecret. MySQL only reads its password on first start, so on an
-existing volume reset it once: scale `reviews-mysql` to 0, delete the `reviews-mysql` PVC, sync,
-then `kubectl -n boutique rollout restart deploy/reviewsservice`. Posting a review then returns 302.
-
-### 5. Karpenter
+### 4. Security checks
 
 ```sh
-helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version 1.14.1 \
-  -n kube-system \
-  --set settings.clusterName=online-boutique-eks \
-  --set settings.interruptionQueue=$(terraform -chdir=terraform-eks output -raw karpenter_queue_name) \
-  --set replicas=1 \
-  --set controller.resources.requests.cpu=200m \
-  --set controller.resources.requests.memory=256Mi \
-  --set controller.resources.limits.memory=512Mi --wait
-kubectl apply -f karpenter/nodepool.yaml
-```
-
-Check: `kubectl get nodepool,ec2nodeclass` both `READY True`. To see it work, shrink the managed
-node group so pods go Pending:
-
-```sh
-aws eks update-nodegroup-config --cluster-name online-boutique-eks \
-  --nodegroup-name <nodegroup> --scaling-config minSize=2,maxSize=3,desiredSize=2 --region ap-south-1
-kubectl get nodeclaims -w
-```
-
-A NodeClaim appears within seconds of a pod going Pending. Terraform cannot change the node
-count: the EKS module ignores `desired_size` so it does not fight an autoscaler, which is why
-the scaling commands go through the AWS CLI.
-
-### 6. Security checks
-
-```sh
-# a privileged pod is refused at admission (namespace enforces restricted)
+# a privileged pod is refused at admission (the namespace enforces restricted)
 kubectl -n boutique run evil --image=busybox --restart=Never \
   --overrides='{"spec":{"containers":[{"name":"evil","image":"busybox","securityContext":{"privileged":true}}]}}'
 
@@ -257,9 +260,9 @@ aws eks describe-cluster --name online-boutique-eks --region ap-south-1 \
   --query cluster.accessConfig.authenticationMode
 ```
 
-Expected: `Forbidden: violates PodSecurity "restricted:latest"`, no token from IMDS, and `API`.
+Check: `Forbidden: violates PodSecurity "restricted:latest"`, no token from IMDS, and `API`.
 
-### 7. Load and HPA
+### 5. Load and HPA
 
 ```sh
 kubectl -n boutique autoscale deployment frontend --cpu=50% --min=2 --max=8
@@ -268,14 +271,14 @@ kubectl -n default create deployment load --image=busybox:1.36 --replicas=6 -- \
 kubectl -n boutique get hpa frontend -w
 ```
 
-The load pods live in `default` because `boutique` rejects anything that is not restricted-clean.
-Delete the load Deployment when done. The HPA is created by hand for the test and is not in the
-overlay yet.
+Check: the frontend scales out while CPU is above 50%. The load pods live in `default` because
+`boutique` rejects anything that is not restricted-clean. Delete the load Deployment when done.
+The HPA is created by hand for the test and is not in the overlay yet.
 
-### 8. HA drill
+### 6. HA drill
 
-Keep traffic on the ALB while a frontend pod is killed and the node hosting the other frontend
-pod is drained:
+Keep traffic on the ALB while one frontend pod is killed and the node hosting the other is
+drained:
 
 ```sh
 ALB=$(kubectl -n boutique get ingress boutique -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
@@ -284,6 +287,17 @@ kubectl -n boutique delete pod <one-frontend-pod>
 kubectl drain <node-with-the-other-frontend> --ignore-daemonsets --delete-emptydir-data --timeout=130s
 kill %1; sort ha.log | uniq -c
 kubectl uncordon <node>
+```
+
+Check: every line in `ha.log` is `200`. The drain itself may not finish because of the
+redis-cart budget (see [Known gaps](#known-gaps)); the traffic result is what this step measures.
+
+Changing the managed node group size later goes through the AWS API, not Terraform: the EKS
+module ignores `desired_size` so that it does not fight an autoscaler.
+
+```sh
+aws eks update-nodegroup-config --cluster-name online-boutique-eks \
+  --nodegroup-name <nodegroup> --scaling-config minSize=2,maxSize=3,desiredSize=<n> --region ap-south-1
 ```
 
 ---
