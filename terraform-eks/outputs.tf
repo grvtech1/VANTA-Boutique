@@ -31,7 +31,7 @@ output "lb_controller_role_arn" {
     Pass this as LB_ROLE_ARN when running scripts/eks-addons.sh:
       LB_ROLE_ARN=$(terraform output -raw lb_controller_role_arn) scripts/eks-addons.sh
   EOT
-  value = module.irsa_lb_controller.iam_role_arn
+  value       = module.irsa_lb_controller.iam_role_arn
 }
 
 output "ebs_csi_role_arn" {
@@ -45,7 +45,7 @@ output "vpc_id" {
     to place ALBs in. Pass as VPC_ID when running scripts/eks-addons.sh:
       VPC_ID=$(terraform output -raw vpc_id) scripts/eks-addons.sh
   EOT
-  value = module.vpc.vpc_id
+  value       = module.vpc.vpc_id
 }
 
 output "cluster_endpoint" {

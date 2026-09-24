@@ -57,7 +57,7 @@ provider "aws" {
       Environment = "eks"
       ManagedBy   = "terraform"
       Owner       = "gaurav"
-      Stack       = "eks-managed"   # distinguishes from the kubeadm stack
+      Stack       = "eks-managed" # distinguishes from the kubeadm stack
     }
   }
 }

@@ -58,17 +58,17 @@ module "vpc" {
   # internet egress until the NAT fails over. Acceptable for a lab.
   enable_nat_gateway   = true
   single_nat_gateway   = true
-  enable_dns_hostnames = true   # required: EKS nodes register via DNS
+  enable_dns_hostnames = true # required: EKS nodes register via DNS
   enable_dns_support   = true
 
   # Tags required by AWS Load Balancer Controller — see WHY above.
   public_subnet_tags = {
-    "kubernetes.io/role/elb"            = 1
+    "kubernetes.io/role/elb"                    = 1
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb"   = 1
+    "kubernetes.io/role/internal-elb"           = 1
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
@@ -93,7 +93,7 @@ module "irsa_ebs_csi" {
   version = "~> 5.0"
 
   role_name             = "${var.cluster_name}-ebs-csi"
-  attach_ebs_csi_policy = true   # attaches AmazonEBSCSIDriverPolicy
+  attach_ebs_csi_policy = true # attaches AmazonEBSCSIDriverPolicy
 
   oidc_providers = {
     main = {
@@ -120,7 +120,7 @@ module "irsa_lb_controller" {
   version = "~> 5.0"
 
   role_name                              = "${var.cluster_name}-lb-controller"
-  attach_load_balancer_controller_policy = true   # attaches AWSLoadBalancerControllerIAMPolicy
+  attach_load_balancer_controller_policy = true # attaches AWSLoadBalancerControllerIAMPolicy
 
   oidc_providers = {
     main = {
@@ -166,8 +166,16 @@ module "eks" {
   # Without this you'd need to separately edit aws-auth ConfigMap.
   enable_cluster_creator_admin_permissions = true
 
+  # Audit and compliance logging to CloudWatch
+  cluster_enabled_log_types = ["api", "audit", "authenticator"]
+
+  # Enforce standard support to prevent the 6x ($0.60/hr) extended support charge
+  cluster_upgrade_policy = {
+    support_type = "STANDARD"
+  }
+
   vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets   # control-plane ENIs land in private subnets
+  subnet_ids = module.vpc.private_subnets # control-plane ENIs land in private subnets
 
   # ------------------------------------------------------------------
   # Managed EKS add-ons
@@ -191,6 +199,15 @@ module "eks" {
     vpc-cni = {
       most_recent    = true
       before_compute = true
+      # Prefix delegation: each ENI slot gets a /28 (16 IPs) instead of one IP,
+      # so a node can run far more pods before IP exhaustion. Set on day one —
+      # changing it later means rolling every node.
+      configuration_values = jsonencode({
+        env = {
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
     }
     # EBS CSI driver — needed so PVCs (MySQL for reviews) bind to EBS volumes.
     # IRSA role wired here so the controller pods can call ec2:CreateVolume, etc.
@@ -210,18 +227,36 @@ module "eks" {
     # or per workload class (cpu vs memory optimised).
     main = {
       name           = "${var.cluster_name}-main-ng"
-      instance_types = [var.node_instance_type]   # t3.large default
+      instance_types = [var.node_instance_type] # m7i-flex.large default
 
-      desired_size = var.node_desired   # 2
-      min_size     = var.node_min       # 2
-      max_size     = var.node_max       # 3
+      # Kubernetes 1.33+ has no Amazon Linux 2 AMIs; module v20 still defaults
+      # to AL2, so without this line the node group fails to create.
+      ami_type = "AL2023_x86_64_STANDARD"
+
+      # The module builds the node IAM role as "<name>-eks-node-group-" as a
+      # name_prefix, which blows past the 38-char limit for this cluster name.
+      # A fixed, short role name avoids it.
+      iam_role_use_name_prefix = false
+      iam_role_name            = "${var.cluster_name}-node"
+
+      # IMDSv2 only, hop limit 1: a pod is one network hop away from the node,
+      # so it cannot reach instance metadata and borrow the node's IAM role.
+      metadata_options = {
+        http_endpoint               = "enabled"
+        http_tokens                 = "required"
+        http_put_response_hop_limit = 1
+      }
+
+      desired_size = var.node_desired # 2
+      min_size     = var.node_min     # 2
+      max_size     = var.node_max     # 3
 
       # Nodes land in private subnets — no direct internet access.
       # They egress through the single NAT gateway.
       subnet_ids = module.vpc.private_subnets
 
       # EBS root volume for the node OS — gp3 is cheaper and faster than gp2.
-      disk_size = 30   # GiB
+      disk_size = 30 # GiB
 
       # Nodes don't need direct public IPs — traffic routes through the NAT.
       associate_public_ip_address = false

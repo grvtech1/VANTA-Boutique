@@ -21,13 +21,13 @@ variable "cluster_name" {
 variable "kubernetes_version" {
   description = "Kubernetes control-plane version managed by EKS. Patch is handled by EKS; only track minor versions here."
   type        = string
-  default     = "1.30"
+  default     = "1.35"
 }
 
 variable "node_instance_type" {
-  description = "EC2 instance type for managed node group workers. t3.large = 2 vCPU / 8 GiB — enough for 14 microservices with headroom."
+  description = "EC2 instance type for managed node group workers. m7i-flex.large = 2 vCPU / 8 GiB, and it is on the Free Plan eligible list (t3.large is not)."
   type        = string
-  default     = "t3.large"
+  default     = "m7i-flex.large"
 }
 
 variable "node_desired" {
@@ -55,6 +55,6 @@ variable "vpc_cidr" {
     VPC peering without overlapping addresses — a common production pattern
     when you need dev (kubeadm) to talk to staging (EKS).
   EOT
-  type    = string
-  default = "10.10.0.0/16"
+  type        = string
+  default     = "10.10.0.0/16"
 }
