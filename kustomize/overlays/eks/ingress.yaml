@@ -42,6 +42,10 @@ metadata:
     # Health check path — the frontend's / returns 200 when healthy.
     alb.ingress.kubernetes.io/healthcheck-path: /
 
+    # Drain in-flight requests for up to 30s when a target leaves (default 300s
+    # keeps a dead pod in the target group for five minutes).
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+
     # ALB Controller reads the VPC and subnets from the IRSA role + cluster tags.
     # No explicit subnet annotation needed if the VPC subnets have the right tags
     # (kubernetes.io/role/elb=1 on public subnets — set by terraform-eks/main.tf).

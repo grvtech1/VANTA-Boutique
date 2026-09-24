@@ -58,6 +58,49 @@ patches:
       metadata:
         name: reviews-mysql
 
+  # Graceful shutdown. When a pod is evicted, SIGTERM and its removal from
+  # the load balancer / Service endpoints happen in parallel, so for a few
+  # seconds traffic still arrives at a pod that is exiting (the 502s seen in
+  # the node-drain test). preStop sleep keeps the pod serving until it has
+  # been taken out of rotation; the grace period is raised to cover it
+  # (upstream sets 5s on most services). Native sleep action: no shell needed.
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
+      spec:
+        template:
+          spec:
+            terminationGracePeriodSeconds: 45
+            containers:
+              - name: server
+                lifecycle:
+                  preStop:
+                    sleep:
+                      seconds: 15   # ALB target deregistration
+  - target:
+      kind: Deployment
+      name: adservice|cartservice|checkoutservice|currencyservice|emailservice|inventoryservice|paymentservice|productcatalogservice|recommendationservice|reviewsservice|shippingservice|wishlistservice
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: backends
+      spec:
+        template:
+          spec:
+            terminationGracePeriodSeconds: 30
+            containers:
+              - name: server
+                lifecycle:
+                  preStop:
+                    sleep:
+                      seconds: 5    # kube-proxy endpoint removal
+
 components:
   - ../../components/reviews-persistence      # MySQL-backed reviews; PVC binds to gp3 on EKS
   - ../../components/pod-disruption-budgets   # ensures HA during EKS managed node group updates
