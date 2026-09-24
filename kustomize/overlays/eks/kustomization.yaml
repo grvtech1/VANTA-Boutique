@@ -57,6 +57,16 @@ patches:
       kind: Secret
       metadata:
         name: reviews-mysql
+  # The base ships frontend-external as a type: LoadBalancer Service. On
+  # kubeadm it just sits <pending>; on EKS the Load Balancer Controller turns
+  # it into a real (internal, unused) NLB. The ALB Ingress is the entry point
+  # here, so drop it.
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: frontend-external
 
   # Graceful shutdown. When a pod is evicted, SIGTERM and its removal from
   # the load balancer / Service endpoints happen in parallel, so for a few
