@@ -34,6 +34,23 @@ resources:
 # passwords. On EKS it is removed here and rebuilt by ESO from SSM
 # (external-secrets.yaml), so no credential lives in Git for this cluster.
 patches:
+  # Pod Security "restricted" needs a seccomp profile on every pod; the
+  # upstream manifests already run non-root with all capabilities dropped,
+  # this was the only gap. RuntimeDefault = the container runtime's default
+  # syscall filter.
+  - target:
+      kind: Deployment
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: all
+      spec:
+        template:
+          spec:
+            securityContext:
+              seccompProfile:
+                type: RuntimeDefault
   - patch: |-
       $patch: delete
       apiVersion: v1

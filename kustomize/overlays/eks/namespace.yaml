@@ -5,3 +5,11 @@ metadata:
   labels:
     app.kubernetes.io/part-of: vanta-boutique
     environment: eks
+    # Pod Security Admission: the strictest built-in profile. Every workload
+    # here runs non-root, drops all capabilities and uses the RuntimeDefault
+    # seccomp profile (patched in kustomization.yaml), so restricted is
+    # enforced, not just warned about. A pod that tries privileged, hostPath,
+    # root or extra capabilities is rejected at admission.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

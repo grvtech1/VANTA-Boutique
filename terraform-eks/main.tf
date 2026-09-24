@@ -168,6 +168,11 @@ module "eks" {
   # Without this you'd need to separately edit aws-auth ConfigMap.
   enable_cluster_creator_admin_permissions = true
 
+  # Access entries only. API_AND_CONFIG_MAP (the default) still honours the
+  # legacy aws-auth ConfigMap; API closes that path so cluster access lives
+  # only in the EKS API. One-way: EKS will not switch back to the ConfigMap.
+  authentication_mode = "API"
+
   # Audit and compliance logging to CloudWatch
   cluster_enabled_log_types = ["api", "audit", "authenticator"]
 
